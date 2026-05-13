@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>How to Make a Schedule With AI That Does Not Hallucinate | NiceSchedule</title>
-  <meta name="description" content="Use AI to help write scheduling constraints, then let OR-Tools CP-SAT generate a deterministic call schedule from CSV files.">
+  <title>How to Make a Call Schedule With AI That Doesn't Hallucinate | NiceSchedule</title>
+  <meta name="description" content="A senior resident on r/Residency asked how everyone builds the call schedule. The top reply said no AI can do it. This is the free walkthrough that proves them half wrong.">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://niceschedule.com/how-to-make-a-schedule-with-ai/">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -13,18 +13,18 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="NiceSchedule">
   <meta property="og:url" content="https://niceschedule.com/how-to-make-a-schedule-with-ai/">
-  <meta property="og:title" content="How to Make a Schedule With AI That Does Not Hallucinate">
-  <meta property="og:description" content="Do not ask ChatGPT to invent a schedule. Use AI to help write constraints, then let CP-SAT solve the schedule.">
+  <meta property="og:title" content="How to Make a Call Schedule With AI That Doesn't Hallucinate">
+  <meta property="og:description" content="Reddit said no AI can build the call schedule. They were half right. Here's the free walkthrough — under an hour, real solver, open source.">
   <meta property="og:image" content="https://niceschedule.com/niceschedulescreenshot.png">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="How to Make a Schedule With AI That Does Not Hallucinate">
-  <meta name="twitter:description" content="Use AI to help write constraints, then let OR-Tools CP-SAT generate a deterministic call schedule from CSV files.">
+  <meta name="twitter:title" content="How to Make a Call Schedule With AI That Doesn't Hallucinate">
+  <meta name="twitter:description" content="Reddit said no AI can build the call schedule. They were half right. Here's the free walkthrough.">
   <meta name="twitter:image" content="https://niceschedule.com/niceschedulescreenshot.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
 
   <style>
     :root {
@@ -44,6 +44,12 @@
       --green-soft: #e7f2ed;
       --amber-soft: #f8efd9;
       --red-soft: #f8e7e3;
+      --or: #e3edf5;
+      --or-ink: #1a4769;
+      --ob: #f4e8d3;
+      --ob-ink: #6e4a16;
+      --vac: #efe9da;
+      --vac-ink: #8a6a2e;
       --font-serif: "EB Garamond", Georgia, serif;
       --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -55,7 +61,7 @@
 
     html {
       scroll-behavior: smooth;
-      scroll-padding-top: 84px;
+      scroll-padding-top: 110px;
     }
 
     body {
@@ -74,13 +80,20 @@
     .nav,
     .kicker,
     .meta,
+    .byline,
     .button,
+    .share-row,
+    .share-btn,
     .toc,
     .panel,
     .table-wrap,
     .file-card,
     .step-label,
     .note,
+    .reddit-shot figcaption,
+    .grid-schedule,
+    .grid-legend,
+    .end-cards,
     footer {
       font-family: var(--font-sans);
     }
@@ -124,12 +137,23 @@
     }
 
     .site-cta {
-      color: var(--ink);
-      font-size: 14px;
-      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 1px solid var(--ink);
+      border-radius: 4px;
+      background: var(--ink);
+      color: var(--bg);
+      font-size: 13px;
+      font-weight: 700;
       text-decoration: none;
-      border-bottom: 1px solid var(--ink);
-      padding-bottom: 2px;
+      cursor: pointer;
+    }
+
+    .site-cta:hover {
+      background: var(--accent);
+      border-color: var(--accent);
     }
 
     .agent-banner {
@@ -153,9 +177,7 @@
       gap: 18px;
     }
 
-    .agent-banner strong {
-      color: var(--ink);
-    }
+    .agent-banner strong { color: var(--ink); }
 
     .agent-banner a {
       color: var(--accent);
@@ -163,9 +185,7 @@
       white-space: nowrap;
     }
 
-    main {
-      overflow: hidden;
-    }
+    main { overflow: hidden; }
 
     .wrap {
       width: 100%;
@@ -182,14 +202,41 @@
     }
 
     .hero {
-      padding: 74px 0 48px;
+      padding: 56px 0 48px;
     }
 
-    .hero-grid {
+    .reddit-shot {
+      margin: 0 0 36px;
       display: grid;
-      grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.72fr);
-      gap: 48px;
-      align-items: start;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      max-width: 880px;
+    }
+
+    .reddit-shot figure {
+      margin: 0;
+      padding: 0;
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 10px 24px -18px rgba(15, 53, 86, 0.18);
+    }
+
+    .reddit-shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .reddit-shot figcaption {
+      padding: 10px 14px;
+      border-top: 1px solid var(--rule);
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
     }
 
     .kicker {
@@ -201,24 +248,22 @@
       text-transform: uppercase;
     }
 
-    h1,
-    h2,
-    h3 {
+    h1, h2, h3 {
       color: var(--ink);
       letter-spacing: 0;
       line-height: 1.15;
     }
 
     h1 {
-      max-width: 12ch;
+      max-width: 22ch;
       margin: 0 0 20px;
-      font-size: clamp(2.5rem, 5vw, 4.5rem);
-      line-height: 0.98;
+      font-size: clamp(2.3rem, 4.6vw, 3.8rem);
+      line-height: 1.02;
     }
 
     h2 {
       margin: 0 0 18px;
-      font-size: clamp(1.65rem, 3vw, 2.25rem);
+      font-size: clamp(1.6rem, 3vw, 2.15rem);
     }
 
     h3 {
@@ -233,43 +278,45 @@
       color: var(--ink-2);
     }
 
-    p:last-child {
-      margin-bottom: 0;
-    }
+    p:last-child { margin-bottom: 0; }
 
-    ul,
-    ol {
+    ul, ol {
       margin: 0 0 1em;
       padding-left: 22px;
       color: var(--ink-2);
     }
 
-    li {
-      margin-bottom: 7px;
-    }
+    li { margin-bottom: 7px; }
 
     .lede {
-      max-width: 58ch;
+      max-width: 60ch;
       margin-bottom: 22px;
       color: var(--ink-2);
       font-size: 1.18rem;
       line-height: 1.55;
     }
 
-    .meta {
+    .byline {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px 16px;
-      margin: 20px 0 0;
+      gap: 8px 16px;
+      margin: 22px 0 6px;
       color: var(--muted);
       font-size: 13px;
+      font-weight: 500;
+    }
+
+    .byline span + span::before {
+      content: "·";
+      margin-right: 16px;
+      color: var(--rule);
     }
 
     .button-row {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin: 28px 0 0;
+      margin: 26px 0 0;
     }
 
     .button {
@@ -286,6 +333,7 @@
       font-weight: 700;
       line-height: 1.1;
       text-decoration: none;
+      cursor: pointer;
     }
 
     .button.secondary {
@@ -299,50 +347,52 @@
       color: var(--bg);
     }
 
-    .toc {
-      border: 1px solid var(--rule);
-      border-radius: 8px;
-      background: var(--panel);
-      overflow: hidden;
-    }
-
-    .toc-title {
-      padding: 13px 16px;
-      border-bottom: 1px solid var(--rule);
-      background: var(--panel-soft);
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .toc a {
-      display: block;
-      padding: 12px 16px;
-      border-top: 1px solid var(--rule-2);
-      color: var(--ink-2);
+    /* ---- Share row ---- */
+    .share-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 26px 0 0;
       font-size: 14px;
-      text-decoration: none;
     }
 
-    .toc a:first-of-type {
-      border-top: 0;
+    .share-row .share-label {
+      color: var(--muted);
+      font-weight: 600;
+      margin-right: 2px;
     }
 
-    .toc a:hover {
-      background: #faf8f1;
+    .share-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 14px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: var(--panel);
       color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease;
     }
+
+    .share-btn:hover {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: var(--bg);
+    }
+
+    .share-btn svg { width: 14px; height: 14px; }
 
     section {
-      padding: 70px 0;
+      padding: 64px 0;
       border-top: 1px solid var(--rule);
     }
 
-    .band {
-      background: var(--panel);
-    }
+    .band { background: var(--panel); }
 
     .quote {
       margin: 24px 0;
@@ -384,52 +434,9 @@
       border-color: #e1c7b8;
     }
 
-    .plug {
-      margin: 28px 0;
-      padding: 22px 24px;
-      border: 1px solid #c7ded3;
-      border-radius: 8px;
-      background: var(--green-soft);
-      font-family: var(--font-sans);
-      font-size: 15px;
-      line-height: 1.55;
-    }
-
-    .plug strong {
-      color: var(--ink);
-    }
-
-    .plug p {
-      color: var(--ink-2);
-    }
-
-    .plug .button-row {
-      margin-top: 16px;
-    }
-
-    .cta-options {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-      margin-top: 26px;
-    }
-
-    .cta-card {
-      padding: 22px 24px;
-      border: 1px solid var(--rule);
-      border-radius: 8px;
-      background: var(--panel);
-      font-family: var(--font-sans);
-      font-size: 15px;
-      line-height: 1.55;
-    }
-
-    .cta-card h3 {
-      margin-bottom: 10px;
-    }
-
-    .cta-card .button-row {
-      margin-top: 18px;
+    .note.tip {
+      background: #f4ecdf;
+      border-color: #e1d3b3;
     }
 
     .steps {
@@ -468,7 +475,11 @@
     }
 
     .panel-head {
-      padding: 13px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
       border-bottom: 1px solid var(--rule);
       background: var(--panel-soft);
       color: var(--muted);
@@ -478,9 +489,21 @@
       text-transform: uppercase;
     }
 
-    .panel-body {
-      padding: 18px 20px;
+    .panel-head .copy-btn {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 5px 10px;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--ink);
+      cursor: pointer;
     }
+
+    .panel-head .copy-btn:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+    .panel-body { padding: 18px 20px; }
 
     .file-grid {
       display: grid;
@@ -503,10 +526,7 @@
       font-weight: 700;
     }
 
-    pre,
-    code {
-      font-family: var(--font-mono);
-    }
+    pre, code { font-family: var(--font-mono); }
 
     code {
       padding: 2px 5px;
@@ -525,6 +545,7 @@
       color: #eaf0f5;
       font-size: 13px;
       line-height: 1.55;
+      white-space: pre;
     }
 
     .table-wrap {
@@ -542,8 +563,7 @@
       font-size: 14px;
     }
 
-    th,
-    td {
+    th, td {
       padding: 12px 14px;
       border-bottom: 1px solid var(--rule);
       border-right: 1px solid var(--rule-2);
@@ -551,14 +571,8 @@
       vertical-align: top;
     }
 
-    th:last-child,
-    td:last-child {
-      border-right: 0;
-    }
-
-    tr:last-child td {
-      border-bottom: 0;
-    }
+    th:last-child, td:last-child { border-right: 0; }
+    tr:last-child td { border-bottom: 0; }
 
     th {
       background: var(--panel-soft);
@@ -569,22 +583,163 @@
       text-transform: uppercase;
     }
 
+    /* ---- The schedule grid (the holy-shit moment) ---- */
+    .grid-frame {
+      margin: 24px 0 8px;
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 16px 30px -22px rgba(15, 53, 86, 0.18);
+    }
+
+    .grid-frame-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .grid-frame-scroll { overflow-x: auto; }
+
+    .grid-schedule {
+      display: grid;
+      grid-template-columns: 100px repeat(14, minmax(56px, 1fr));
+      min-width: 920px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+    }
+
+    .grid-schedule .gh {
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--rule);
+      border-right: 1px solid var(--rule-2);
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .grid-schedule .gh.corner {
+      text-align: left;
+      padding-left: 14px;
+    }
+
+    .grid-schedule .gh.weekend { background: #efe7d2; }
+
+    .grid-schedule .gname {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--rule-2);
+      border-right: 1px solid var(--rule);
+      background: #faf7ee;
+      color: var(--ink);
+      font-weight: 700;
+      font-size: 12.5px;
+    }
+
+    .grid-schedule .gcell {
+      padding: 10px 4px;
+      border-bottom: 1px solid var(--rule-2);
+      border-right: 1px solid var(--rule-2);
+      text-align: center;
+      color: var(--muted);
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .grid-schedule .gcell.weekend { background: #fbf7ea; }
+
+    .grid-schedule .gcell.or {
+      background: var(--or);
+      color: var(--or-ink);
+      font-weight: 700;
+    }
+
+    .grid-schedule .gcell.ob {
+      background: var(--ob);
+      color: var(--ob-ink);
+      font-weight: 700;
+    }
+
+    .grid-schedule .gcell.vac {
+      background: var(--vac);
+      color: var(--vac-ink);
+      font-weight: 700;
+      font-style: italic;
+    }
+
+    .grid-schedule .gcell.empty { color: #c8cfd6; }
+
+    .grid-schedule .row-last .gcell,
+    .grid-schedule .row-last .gname { border-bottom: 0; }
+
+    .grid-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+
+    .grid-legend .lg {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .grid-legend .swatch {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid var(--rule);
+    }
+
+    .grid-legend .swatch.or { background: var(--or); border-color: #c8d8e4; }
+    .grid-legend .swatch.ob { background: var(--ob); border-color: #ddc99a; }
+    .grid-legend .swatch.vac { background: var(--vac); border-color: #d6c594; }
+
+    /* ---- End-of-post CTA cards ---- */
+    .end-cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 28px;
+    }
+
+    .end-card {
+      padding: 24px;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.55;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .end-card h3 { margin-bottom: 10px; font-size: 1.05rem; }
+    .end-card p { color: var(--ink-2); }
+    .end-card .button, .end-card .share-btn { margin-top: auto; }
+    .end-card .share-row { margin-top: 16px; }
+
     .cta {
       background: var(--ink);
       color: var(--bg);
     }
 
-    .cta h2,
-    .cta p,
-    .cta a {
-      color: var(--bg);
-    }
-
-    .cta .button {
-      background: var(--bg);
-      border-color: var(--bg);
-      color: var(--ink);
-    }
+    .cta h2, .cta p, .cta a { color: var(--bg); }
+    .cta .button { background: var(--bg); border-color: var(--bg); color: var(--ink); }
 
     footer {
       padding: 40px 0 56px;
@@ -615,53 +770,26 @@
       border-bottom: 1px solid transparent;
     }
 
-    .foot-links a:hover {
-      border-bottom-color: var(--muted);
-    }
+    .foot-links a:hover { border-bottom-color: var(--muted); }
 
     @media (max-width: 900px) {
-      .hero-grid,
       .file-grid,
-      .cta-options {
+      .end-cards {
         grid-template-columns: 1fr;
       }
     }
 
     @media (max-width: 720px) {
-      body {
-        font-size: 17px;
-      }
-
-      .site-inner {
-        padding: 14px 20px;
-      }
-
-      .hero {
-        padding: 52px 0 38px;
-      }
-
-      section {
-        padding: 56px 0;
-      }
-
-      h1 {
-        max-width: 14ch;
-        font-size: 2.45rem;
-      }
-
-      .step {
-        grid-template-columns: 42px 1fr;
-        gap: 14px;
-      }
-
-      .step-label {
-        width: 36px;
-        height: 36px;
-      }
-
-      .button-row .button {
-        width: 100%;
-      }
+      body { font-size: 17px; }
+      .site-inner { padding: 14px 20px; }
+      .hero { padding: 36px 0 32px; }
+      section { padding: 48px 0; }
+      h1 { font-size: 2.2rem; }
+      .reddit-shot { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 42px 1fr; gap: 14px; }
+      .step-label { width: 36px; height: 36px; }
+      .button-row .button { width: 100%; }
+      html { scroll-padding-top: 130px; }
     }
   </style>
 </head>
@@ -669,67 +797,70 @@
   <header class="site">
     <div class="site-inner">
       <a class="wordmark" href="/">Nice<span>Schedule</span></a>
-      <a class="site-cta" href="#agent">Copy agent handoff</a>
+      <a class="site-cta" href="#share-end" id="header-share-cta">Share this post</a>
     </div>
   </header>
 
   <div class="agent-banner">
     <div class="agent-banner-inner">
-      <div><strong>If setup breaks:</strong> hand this page to Codex, Claude Code, ChatGPT, or another coding agent and ask it to run the dummy schedule with you.</div>
-      <a href="#agent">Copy handoff</a>
+      <div><strong>Got Claude Code or Codex?</strong> Hand this page to your agent and let it run the dummy schedule with you.</div>
+      <a href="#agent">Copy handoff &rarr;</a>
     </div>
   </div>
 
   <main>
+    <!-- HERO -->
     <section class="hero">
-      <div class="wide hero-grid">
-        <div>
-          <p class="kicker">AI plus constraint solving</p>
-          <h1>How to make a schedule with AI that does not hallucinate</h1>
-          <p class="lede">Do not ask ChatGPT to invent the schedule. Use AI to help write the rules, then let OR-Tools CP-SAT solve the schedule deterministically.</p>
-          <p>Once upon a time, if you asked an LLM how many r&rsquo;s are in strawberry, it might tell you two. Meanwhile, a tiny Python program would just count the string and return three.</p>
-          <p>That is the difference between a plausible answer and a checked answer. Your call schedule needs the checked answer.</p>
-          <div class="meta">
-            <span>Moultrie Ball</span>
-            <span>30 minute read</span>
-            <span>10 minutes to first dummy schedule</span>
-          </div>
-          <div class="button-row">
-            <a class="button" href="#run">Run the dummy solver</a>
-            <a class="button secondary" href="#coverage">Understand coverage.csv</a>
-          </div>
-          <div class="plug">
-            <p><strong>Shameless plug:</strong> this is free because residents, chief residents, fellows, and whoever got stuck making the call schedule should have a better option than asking ChatGPT to hallucinate a calendar.</p>
-            <p>If you want a simple hosted web version of this free tool, email me and I&rsquo;ll tell you if we build it. If you are doing this for a real anesthesia group and want schedules managed securely, book a NiceSchedule call.</p>
-            <div class="button-row">
-              <a class="button" href="mailto:hello@niceschedule.com?subject=Web%20version%20of%20the%20AI%20schedule%20solver">Tell me about the web version</a>
-              <a class="button secondary" href="mailto:hello@niceschedule.com?subject=NiceSchedule%20call%20for%20our%20anesthesia%20group">Book a NiceSchedule call</a>
-            </div>
-          </div>
+      <div class="wide">
+        <p class="kicker">A free walkthrough</p>
+
+        <div class="reddit-shot" aria-label="Reddit context">
+          <figure>
+            <img src="img/call%20schedule%20post.png" alt="A senior resident asking r/Residency how they make their call schedules. Title: For all the senior/chief residents, how do you make the call schedules at your program? 28 upvotes, 13 comments.">
+            <figcaption>The question. <a href="https://www.reddit.com/r/Residency/comments/1r4zdjx/for_all_the_seniorchief_residents_how_do_you_make/" target="_blank" rel="noopener noreferrer">r/Residency, 3 months ago</a>.</figcaption>
+          </figure>
+          <figure>
+            <img src="img/call%20schedule%20answer.png" alt="A reply on the post saying: As someone who did this, there is no replacement for just fucking getting shit done on Excel. No AI is going to do a better job. 60 upvotes.">
+            <figcaption>The top reply on <a href="https://www.reddit.com/r/Residency/comments/1r4zdjx/for_all_the_seniorchief_residents_how_do_you_make/" target="_blank" rel="noopener noreferrer">that thread</a>. 60 upvotes &mdash; more than the original post.</figcaption>
+          </figure>
         </div>
 
-        <aside class="toc" aria-label="Table of contents">
-          <div class="toc-title">On this page</div>
-          <a href="#distinction">The distinction</a>
-          <a href="#rules">What v1 solves</a>
-          <a href="#files">The CSV files</a>
-          <a href="#run">Run dummy data first</a>
-          <a href="#coverage">Generate coverage.csv</a>
-          <a href="#agent">Hand this to an agent</a>
-          <a href="#privacy">Privacy</a>
-          <a href="#next">What to add next</a>
-        </aside>
+        <h1>How to make a call schedule with AI that doesn&rsquo;t hallucinate.</h1>
+        <p class="lede">That reply is half right. <em>ChatGPT alone</em> won&rsquo;t build you a fair call schedule. It will gladly invent one that looks fine and quietly skips a vacation request. But ChatGPT plus a compact constraint solver will &mdash; deterministically, in about a minute. And the whole thing is free.</p>
+        <p>I built this for the senior resident, the chief, the fellow, the one partner in the group, the person who got handed the spreadsheet and is now spending every other weekend trying to make it fair. If that&rsquo;s you, follow along. If it&rsquo;s someone you know, send them this page.</p>
+
+        <div class="byline">
+          <span>Moultrie Ball</span>
+          <span>~20 min read</span>
+          <span>~10 min to your first schedule</span>
+          <span>Free &middot; open source</span>
+        </div>
+
+        <div class="button-row">
+          <a class="button" href="#run">Run the dummy solver</a>
+          <a class="button secondary" href="#agent">Hand this to my agent</a>
+        </div>
+
+        <div class="share-row" aria-label="Share this post (hero)">
+          <span class="share-label">Send this to:</span>
+          <a class="share-btn" href="https://www.reddit.com/submit?url=https%3A%2F%2Fniceschedule.com%2Fhow-to-make-a-schedule-with-ai%2F&amp;title=How%20to%20make%20a%20call%20schedule%20with%20AI%20that%20doesn%27t%20hallucinate%20(free%20walkthrough)" target="_blank" rel="noopener">r/Residency</a>
+          <a class="share-btn" href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fniceschedule.com%2Fhow-to-make-a-schedule-with-ai%2F&amp;text=Reddit%20said%20no%20AI%20could%20build%20the%20call%20schedule.%20They%20were%20half-right.%20Here%27s%20the%20free%20walkthrough%20%E2%86%92" target="_blank" rel="noopener">Post on X</a>
+          <a class="share-btn" href="mailto:?subject=How%20to%20make%20a%20call%20schedule%20with%20AI&amp;body=Saw%20this%20and%20thought%20of%20you%20%E2%86%92%20https%3A%2F%2Fniceschedule.com%2Fhow-to-make-a-schedule-with-ai%2F">Email a friend</a>
+          <button class="share-btn" type="button" data-copy-url>Copy link</button>
+        </div>
       </div>
     </section>
 
+    <!-- WHY AI ALONE FAILS -->
     <section id="distinction" class="band">
       <div class="wrap">
         <p class="kicker">The distinction</p>
-        <h2>AI should translate rules. The solver should make the schedule.</h2>
-        <p>A language model predicts text. That makes it useful for explanation, code generation, and translating messy human rules into something more precise. It also means it can produce a schedule that looks reasonable while quietly breaking a vacation request, rest rule, or coverage requirement.</p>
-        <p>A constraint solver works differently. You give it variables, constraints, and an objective. It searches for assignments that satisfy the constraints. If the rules conflict, it can tell you there is no feasible schedule instead of making one up.</p>
+        <h2>Why ChatGPT alone keeps failing at this.</h2>
+        <p>Once upon a time, if you asked an LLM how many r&rsquo;s were in <em>strawberry</em>, it would confidently tell you two. Meanwhile a one-line Python program would just count the string and return three. That is the difference between a plausible answer and a checked answer.</p>
+        <p>Your call schedule needs the checked answer. A language model predicts the most likely next token; that is genuinely great for translating messy human rules into something more precise. It is the wrong tool to <em>be</em> the schedule. It will produce a calendar that looks reasonable and quietly skip a vacation, double-book a post-call physician, or leave a weekend uncovered.</p>
+        <p>A constraint solver works differently. You hand it variables, hard rules, and what to prefer. It searches for assignments that satisfy the rules. If the rules conflict, it tells you the schedule is infeasible instead of inventing one.</p>
         <div class="quote">
-          The practical pattern is: use AI to help write the constraints, then use CP-SAT to solve the schedule.
+          The right pattern: use AI to help write the constraints. Use a solver to make the schedule.
         </div>
         <div class="voice">
           <p>This is the part most "just use ChatGPT" posts miss. ChatGPT is not the scheduler. The solver is the scheduler. ChatGPT is the helper you use to write the solver, clean the inputs, explain errors, and add one rule at a time.</p>
@@ -737,11 +868,12 @@
       </div>
     </section>
 
+    <!-- WHAT V1 DOES -->
     <section id="rules">
       <div class="wrap">
         <p class="kicker">The v1 rule set</p>
-        <h2>Start with a small rule set that actually runs</h2>
-        <p>This sample solver is intentionally small. It is not a production anesthesia scheduler. The goal is to prove the workflow before adding real-world complexity.</p>
+        <h2>What the sample solver actually does.</h2>
+        <p>I kept this intentionally small. It is not a production anesthesia scheduler. The point is to prove the workflow runs end-to-end before adding real-world complexity.</p>
         <ol>
           <li>Cover every required shift in <code>coverage.csv</code>.</li>
           <li>Respect shift eligibility in <code>clinicians.csv</code>.</li>
@@ -754,32 +886,33 @@
           <li>Prefer more rest spacing when the hard rules leave room.</li>
         </ol>
         <div class="note good">
-          This is enough to get a useful dummy schedule. Real anesthesia groups usually add holiday rotation, partner versus non-partner allocation, site-specific coverage, backup call, post-call recovery, locked assignments, and local exceptions.
+          That is enough to make a useful dummy schedule. Real groups usually add holiday rotation, partner-vs-non-partner allocation, site-specific coverage, post-call recovery, locked assignments, and local exceptions. The agent handoff section below shows how to layer those in one at a time.
         </div>
       </div>
     </section>
 
+    <!-- INPUTS -->
     <section id="files" class="band">
       <div class="wrap">
         <p class="kicker">Inputs</p>
         <h2>The four CSV files</h2>
-        <p>The solver reads structured CSVs instead of free-form text. That is what keeps the schedule grounded.</p>
+        <p>The solver reads structured CSVs instead of free-form text. That is what keeps the schedule grounded &mdash; the AI never gets to invent who exists or who is on vacation.</p>
         <div class="file-grid">
           <div class="file-card">
             <code>clinicians.csv</code>
-            <p>Who can be scheduled, which shifts they can cover, target counts, max counts, and rest rules.</p>
+            <p>Who can be scheduled, which shifts they cover, target counts, max counts, and rest rules.</p>
           </div>
           <div class="file-card">
             <code>coverage.csv</code>
-            <p>The demand file: each date, each shift type, and how many people are required.</p>
+            <p>The demand file. Each date, each shift type, and how many people are required.</p>
           </div>
           <div class="file-card">
             <code>requests.csv</code>
-            <p>Vacation, no-call requests, and soft preferences. Hard requests block assignments.</p>
+            <p>Vacation, no-call requests, and soft preferences. Hard requests block; soft requests pay a penalty.</p>
           </div>
           <div class="file-card">
             <code>history.csv</code>
-            <p>Prior assignments used to make the new schedule fair against recent history.</p>
+            <p>Prior assignments. Used to make the new schedule fair against recent history.</p>
           </div>
         </div>
 
@@ -811,19 +944,30 @@
               <tr>
                 <td><code>history.csv</code></td>
                 <td><code>2026-05-02,fox,OR,final</code></td>
-                <td>A. Fox covered OR on May 2, which counts toward fairness history.</td>
+                <td>A. Fox covered OR on May 2 &mdash; counts toward fairness history.</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p>Full column-by-column schema is in <code>docs/csv-schema.md</code>.</p>
       </div>
     </section>
 
+    <!-- RUN -->
     <section id="run">
       <div class="wrap">
         <p class="kicker">First run</p>
-        <h2>Run the dummy data before touching your own data</h2>
-        <p>Do not debug Python, CSV formatting, and your real scheduling rules at the same time. First prove the sample works.</p>
+        <h2>Run the dummy data before touching your own data.</h2>
+        <p>Do not debug Python, CSV formatting, and your real scheduling rules at the same time. Run the sample exactly as-is first, see the schedule come out, then adapt.</p>
+
+        <div class="note tip">
+          <strong>Shortcut for Claude Code &amp; Codex users:</strong> skip the manual steps. Open the agent handoff block below, paste it into your agent, and let it do the install and the first solve. Come back here to read what it&rsquo;s doing.
+        </div>
+
+        <p>First, clone the repo:</p>
+        <pre>git clone https://github.com/rumblelab/ai-call-scheduler.git
+cd ai-call-scheduler</pre>
+
         <div class="steps">
           <div class="step">
             <div class="step-label">01</div>
@@ -837,6 +981,7 @@
             <div>
               <h3>Install OR-Tools</h3>
               <pre>.venv/bin/python -m pip install -r requirements.txt</pre>
+              <p>On Windows, the activate path is different. Use <code>.venv\Scripts\python</code> wherever you see <code>.venv/bin/python</code>.</p>
             </div>
           </div>
           <div class="step">
@@ -852,41 +997,193 @@
               <h3>Inspect the output</h3>
               <pre>Status: OPTIMAL
 Wrote 28 assignments to output/sample_schedule.csv</pre>
-              <p>Open <code>output/sample_schedule.csv</code>. You should see an assignment for every required OR and OB shift in the sample period.</p>
+              <p>Open <code>output/sample_schedule.csv</code> for the raw data, or open <code>output/sample_schedule.html</code> to see the beautiful, printable grid version.</p>
             </div>
           </div>
         </div>
 
         <div class="note warning">
-          Do not move to real data until the dummy schedule works. When you do move to real data, replace names with IDs first.
-        </div>
-
-        <div class="plug">
-          <p><strong>If this is too much setup:</strong> that is useful feedback. This tutorial is free, but a hosted web version would make the dummy-data path easier for residents and DIY schedulers.</p>
-          <div class="button-row">
-            <a class="button" href="mailto:hello@niceschedule.com?subject=Web%20version%20of%20the%20AI%20schedule%20solver">Email me when the web version exists</a>
-          </div>
+          Don&rsquo;t move to real data until the dummy schedule works. When you do move to real data, replace names with IDs first.
         </div>
       </div>
     </section>
 
-    <section id="coverage" class="band">
+    <!-- THE OUTPUT (visual schedule) -->
+    <section id="output" class="band">
+      <div class="wrap">
+        <p class="kicker">The output</p>
+        <h2>Here&rsquo;s what comes out of the solver.</h2>
+        <p>Below is the actual <code>output/sample_schedule.csv</code> the sample produces, laid out as a real call calendar. Two weeks. Six clinicians. One OR shift and one OB shift per day. Status: <strong>OPTIMAL</strong>. 28 assignments. Every hard constraint respected.</p>
+
+        <div class="grid-frame" role="region" aria-label="Sample 14-day call schedule">
+          <div class="grid-frame-head">Sample schedule &mdash; June 1&ndash;14, 2026</div>
+          <div class="grid-frame-scroll">
+            <div class="grid-schedule" role="table" aria-label="Six clinicians by fourteen days">
+              <div class="gh corner">Clinician</div>
+              <div class="gh">Mon 1</div>
+              <div class="gh">Tue 2</div>
+              <div class="gh">Wed 3</div>
+              <div class="gh">Thu 4</div>
+              <div class="gh">Fri 5</div>
+              <div class="gh weekend">Sat 6</div>
+              <div class="gh weekend">Sun 7</div>
+              <div class="gh">Mon 8</div>
+              <div class="gh">Tue 9</div>
+              <div class="gh">Wed 10</div>
+              <div class="gh">Thu 11</div>
+              <div class="gh">Fri 12</div>
+              <div class="gh weekend">Sat 13</div>
+              <div class="gh weekend">Sun 14</div>
+
+              <!-- Cary: Jun 4 OB, 5-7 Vacation, 8 OB, 11 OR, 13 OR -->
+              <div class="gname">M. Cary</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell ob">OB</div>
+              <div class="gcell vac">VAC</div>
+              <div class="gcell vac weekend">VAC</div>
+              <div class="gcell vac weekend">VAC</div>
+              <div class="gcell ob">OB</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or weekend">OR</div>
+              <div class="gcell empty weekend">&middot;</div>
+
+              <!-- Fox: Jun 2 OR, 4 OR, 7 OB, 10 OR, 14 OR -->
+              <div class="gname">A. Fox</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty weekend">&middot;</div>
+              <div class="gcell ob weekend">OB</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty weekend">&middot;</div>
+              <div class="gcell or weekend">OR</div>
+
+              <!-- Aken: Jun 3 OR, 6 OR, 8 OR, 12 OR -->
+              <div class="gname">R. Aken</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or weekend">OR</div>
+              <div class="gcell empty weekend">&middot;</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty weekend">&middot;</div>
+              <div class="gcell empty weekend">&middot;</div>
+
+              <!-- Johns: Jun 2 OB, 5 OB, 9 OB, 11 OB, 14 OB -->
+              <div class="gname">C. Johns</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell ob">OB</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell ob">OB</div>
+              <div class="gcell empty weekend">&middot;</div>
+              <div class="gcell empty weekend">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell ob">OB</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell ob">OB</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty weekend">&middot;</div>
+              <div class="gcell ob weekend">OB</div>
+
+              <!-- Judy: Jun 1 OR, 5 OR, 7 OR, 9 OR, 13 OB -->
+              <div class="gname">J. Judy</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty weekend">&middot;</div>
+              <div class="gcell or weekend">OR</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell or">OR</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell empty">&middot;</div>
+              <div class="gcell ob weekend">OB</div>
+              <div class="gcell empty weekend">&middot;</div>
+
+              <!-- Reed: Jun 1 OB, 3 OB, 6 OB, 10 OB, 12 OB. Reed has a hard block on Jun 2 (any). -->
+              <div class="gname row-last">S. Reed</div>
+              <div class="gcell ob row-last">OB</div>
+              <div class="gcell vac row-last">VAC</div>
+              <div class="gcell ob row-last">OB</div>
+              <div class="gcell empty row-last">&middot;</div>
+              <div class="gcell empty row-last">&middot;</div>
+              <div class="gcell ob weekend row-last">OB</div>
+              <div class="gcell empty weekend row-last">&middot;</div>
+              <div class="gcell empty row-last">&middot;</div>
+              <div class="gcell empty row-last">&middot;</div>
+              <div class="gcell ob row-last">OB</div>
+              <div class="gcell empty row-last">&middot;</div>
+              <div class="gcell ob row-last">OB</div>
+              <div class="gcell empty weekend row-last">&middot;</div>
+              <div class="gcell empty weekend row-last">&middot;</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-legend" aria-hidden="true">
+          <span class="lg"><span class="swatch or"></span>OR call</span>
+          <span class="lg"><span class="swatch ob"></span>OB call</span>
+          <span class="lg"><span class="swatch vac"></span>Vacation / hard block (no assignment)</span>
+        </div>
+
+        <p style="margin-top: 20px;">A few things worth pointing out, because they prove the solver actually respected the rules:</p>
+        <ul>
+          <li>Cary&rsquo;s vacation June 5&ndash;7 is honored. Zero assignments those days.</li>
+          <li>Reed&rsquo;s hard block on June 2 is honored. Reed has zero assignments that day &mdash; even though Reed covers five other shifts in the window.</li>
+          <li>Johns asked off OB on June 10 only (shift-specific, not a full day). The solver honored it &mdash; Johns has no OB shift on June 10 &mdash; without blocking other shift types. That distinction matters for real groups.</li>
+          <li>Weekend calls are spread across the group. Fox and Judy take two weekend shifts; the others take one.</li>
+          <li>Total counts are within 1 of each clinician&rsquo;s target. No one is "the one who always covers."</li>
+        </ul>
+
+        <p>That is the holy-shit moment, if you spent last weekend doing this in Excel. It came out of a ~430-line Python file in under a second.</p>
+
+        <div class="share-row" aria-label="Share this post (after output)">
+          <span class="share-label">Send this to the resident who&rsquo;s stuck on it:</span>
+          <a class="share-btn" href="https://www.reddit.com/submit?url=https%3A%2F%2Fniceschedule.com%2Fhow-to-make-a-schedule-with-ai%2F&amp;title=How%20to%20make%20a%20call%20schedule%20with%20AI%20that%20doesn%27t%20hallucinate%20(free%20walkthrough)" target="_blank" rel="noopener">r/Residency</a>
+          <a class="share-btn" href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fniceschedule.com%2Fhow-to-make-a-schedule-with-ai%2F&amp;text=Reddit%20said%20no%20AI%20could%20build%20the%20call%20schedule.%20They%20were%20half-right.%20Here%27s%20the%20free%20walkthrough%20%E2%86%92" target="_blank" rel="noopener">Post on X</a>
+          <a class="share-btn" href="mailto:?subject=How%20to%20make%20a%20call%20schedule%20with%20AI&amp;body=Saw%20this%20and%20thought%20of%20you%20%E2%86%92%20https%3A%2F%2Fniceschedule.com%2Fhow-to-make-a-schedule-with-ai%2F">Email a friend</a>
+          <button class="share-btn" type="button" data-copy-url>Copy link</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- COVERAGE -->
+    <section id="coverage">
       <div class="wrap">
         <p class="kicker">Demand generation</p>
-        <h2><code>coverage.csv</code> is the list of shifts the solver must fill</h2>
-        <p>Yes: <code>coverage.csv</code> is basically the thing you need to fill out. It is the demand side of the schedule. If a row exists, the solver tries to staff it. If a row is missing, the solver does not know that shift exists.</p>
-        <p>You do not have to type it by hand. In fact, you probably should not. If your coverage pattern is regular, have a small script generate it.</p>
+        <h2><code>coverage.csv</code> is the file you actually have to fill out.</h2>
+        <p>Of the four CSVs, this is the demand side. If a row exists, the solver tries to staff it. If a row is missing, the solver does not know that shift exists. So this is the file you have to think about carefully.</p>
+        <p>That said: don&rsquo;t type it by hand. If your coverage pattern is regular, have your agent write a small script that generates it.</p>
         <div class="panel">
-          <div class="panel-head">Natural language to coverage.csv</div>
+          <div class="panel-head">Tell an agent something like this</div>
           <div class="panel-body">
-            <p>You can tell an agent:</p>
             <pre>Create a Python script that writes coverage.csv for June 2026.
 Rules:
 - Every Saturday and Sunday needs one NORTH call and one SOUTH call.
 - Weekdays do not need call coverage in this example.
-- Output columns must be: date,shift_type,required_count.
-- Dates must be ISO format YYYY-MM-DD.</pre>
-            <p>That script should produce rows like:</p>
+- Output columns: date, shift_type, required_count.
+- Dates in ISO format (YYYY-MM-DD).</pre>
+            <p>It will produce rows like:</p>
             <pre>date,shift_type,required_count
 2026-06-06,NORTH,1
 2026-06-06,SOUTH,1
@@ -894,55 +1191,88 @@ Rules:
 2026-06-07,SOUTH,1</pre>
           </div>
         </div>
-        <p>The same pattern works for more complex demand:</p>
+        <p>The same pattern handles:</p>
         <ul>
           <li>one OB call every day</li>
-          <li>two OR calls on weekdays and one OR call on weekends</li>
-          <li>different sites like <code>NORTH</code>, <code>SOUTH</code>, and <code>OB</code></li>
+          <li>two OR calls on weekdays, one OR call on weekends</li>
+          <li>different sites: <code>NORTH</code>, <code>SOUTH</code>, <code>OB</code></li>
           <li>holiday-specific call requirements</li>
           <li>higher required counts on known heavy days</li>
         </ul>
         <div class="note">
-          When you add a new shift type to <code>coverage.csv</code>, add a matching eligibility column in <code>clinicians.csv</code>. For example, shift type <code>NORTH</code> expects <code>can_north</code>.
+          When you add a new shift type to <code>coverage.csv</code>, add a matching eligibility column in <code>clinicians.csv</code>. For example, shift type <code>NORTH</code> expects <code>can_north</code>. If you forget, the solver fails fast with a clear error &mdash; see <code>docs/troubleshooting.md</code>.
         </div>
       </div>
     </section>
 
+    <!-- EMAILS TO CSV -->
+    <section id="emails" class="band">
+      <div class="wrap">
+        <p class="kicker">The messy part</p>
+        <h2>Turning messy emails into <code>requests.csv</code>.</h2>
+        <p>The biggest barrier isn't the solver &mdash; it's the data entry. You have a folder full of "Please give me June 12th off" emails and a PDF of the resident roster. Don't type them into the CSV by hand.</p>
+        <p>This is where ChatGPT or Claude excels. Give them the messy text and ask for the structured CSV.</p>
+        
+        <div class="panel">
+          <div class="panel-head">Paste this into ChatGPT or Claude</div>
+          <div class="panel-body">
+            <pre>I am using a call scheduler that needs a requests.csv file.
+Columns: request_id, clinician_id, start_date, end_date, request_type, hard, note.
+
+Here is a list of emails from residents:
+"[Paste messy email text here]"
+
+And here is our clinician roster:
+"[Paste name list here]"
+
+Please generate the CSV rows. 
+Use clinician_id from the roster. 
+Assume hard=1 for vacation, hard=0 for 'prefer off'. 
+Dates in ISO format.</pre>
+          </div>
+        </div>
+        <div class="voice">
+          <p>Once you have the CSV, save it to <code>data/my_data/requests.csv</code> and run the solver. If the solver says "Status: INFEASIBLE", it means one of those requests made it impossible to cover the shifts. You can then change a 1 to a 0 (making a request "soft") and re-solve.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CUSTOMIZE -->
     <section id="customize">
       <div class="wrap">
         <p class="kicker">Customization</p>
-        <h2>After the sample works, copy the data and change one thing at a time</h2>
-        <p>Make your own data folder:</p>
+        <h2>Once the sample works, change one thing at a time.</h2>
+        <p>Copy the sample data into your own folder:</p>
         <pre>cp -R data/sample data/my_data</pre>
-        <p>Then create your own config file:</p>
+        <p>Copy the sample config:</p>
         <pre>cp config/sample_rules.json config/my_rules.json</pre>
-        <p>In <code>config/my_rules.json</code>, change:</p>
+        <p>In <code>config/my_rules.json</code>, point at your data:</p>
         <pre>{
   "input_dir": "data/my_data",
   "output_csv": "output/my_schedule.csv"
 }</pre>
         <p>Run it:</p>
         <pre>.venv/bin/python solver.py --config config/my_rules.json</pre>
-        <p>Change one file at a time. First clinicians. Then coverage. Then requests. Then history. If the model becomes infeasible, the newest change is usually where to start looking.</p>
-        <div class="plug">
-          <p><strong>This is where real teams usually stop wanting DIY.</strong> The script can generate a schedule, but it does not give your group a safe place to submit requests, approve exceptions, publish updates, or preserve the fairness record month after month. NiceSchedule is built for that hosted workflow.</p>
-          <div class="button-row">
-            <a class="button" href="https://niceschedule.com/">See NiceSchedule</a>
-          </div>
-        </div>
+        <p>Change one file at a time. First clinicians. Then coverage. Then requests. Then history. If the model becomes infeasible, the newest change is usually where the conflict lives &mdash; remove that rule first and inspect what changed.</p>
+        <p>For worked examples of common adaptations &mdash; adding a third shift type, locked assignments, weekend-pairing rules &mdash; see <code>docs/adaptation-cookbook.md</code>.</p>
       </div>
     </section>
 
-    <section id="agent" class="band">
+    <!-- AGENT HANDOFF -->
+    <section id="agent">
       <div class="wrap">
         <p class="kicker">Agent handoff</p>
-        <h2>If you run into issues, hand this page to your coding agent</h2>
-        <p>This tutorial is designed so an agent can help. Codex, Claude Code, ChatGPT, or another coding assistant can read the page, inspect the CSVs, run the dummy solve, and then help you adapt one rule at a time.</p>
-        <p>The file <code>docs/scheduler-agent-skill.md</code> gives the agent a lightweight scheduling playbook: hard constraints, soft preferences, coverage first, dummy data first, and one rule at a time.</p>
+        <h2>If you have Claude Code or Codex, just paste this.</h2>
+        <p>This whole tutorial is designed so a coding agent can drive it. Claude Code, Codex, Cursor, ChatGPT &mdash; any of them can clone the repo, read the docs, run the dummy solve, and then help you adapt one rule at a time.</p>
+        <p>I&rsquo;d strongly recommend <strong>Claude Code or Codex</strong> over a chat-only assistant for this. Local-folder agents can inspect files, run the solver, and see the actual output. Chat-only assistants can only guess at what your CSVs look like.</p>
+
         <div class="panel">
-          <div class="panel-head">Copy this whole block into your agent</div>
+          <div class="panel-head">
+            <span>Copy this block into your agent</span>
+            <button class="copy-btn" type="button" data-copy-target="#agent-prompt">Copy</button>
+          </div>
           <div class="panel-body">
-            <pre>I am trying to use the free NiceSchedule call schedule solver tutorial.
+            <pre id="agent-prompt">I want to use the free NiceSchedule call schedule solver tutorial.
 
 Public walkthrough:
 https://niceschedule.com/how-to-make-a-schedule-with-ai/
@@ -950,85 +1280,102 @@ https://niceschedule.com/how-to-make-a-schedule-with-ai/
 GitHub repo:
 https://github.com/rumblelab/ai-call-scheduler
 
-My goal:
-First, help me run the dummy data exactly as-is.
-Second, help me understand the CSV files.
-Third, help me adapt one rule at a time.
+My goal, in order:
+1. Clone the repo and run the dummy solve exactly as-is.
+2. Explain to me in plain English what the solver did.
+3. Help me adapt one rule at a time.
 
-Please read these files before changing anything:
-- index.html or index.md
+Before changing anything, please read these files:
 - docs/scheduler-agent-skill.md
 - docs/csv-schema.md
 - docs/agent-privacy.md
+- docs/troubleshooting.md
+- docs/adaptation-cookbook.md
 - config/sample_rules.json
 - data/sample/clinicians.csv
 - data/sample/coverage.csv
 - data/sample/requests.csv
 - data/sample/history.csv
+- scripts/generate_coverage.py
 - solver.py
 
 Safety rules:
-- Do not ask me for real names yet.
-- Do not ask me for real vacation data yet.
-- Do not use real schedules until the dummy solve works.
+- Don't ask me for real names or real schedules yet.
+- Don't use real data until the dummy solve works.
 - If you need example data, invent fake data.
-- Add one rule at a time.
-- After each change, tell me exactly how to test it.
+- Add one rule at a time and tell me how to test it.
 
-Start by explaining what this solver currently does in plain English.
-Then help me run the sample command.</pre>
+Start by running the dummy solve and showing me the output.</pre>
           </div>
         </div>
-        <p>Good first agent tasks:</p>
+
+        <h3 style="margin-top: 30px;">Good first asks for your agent</h3>
         <ul>
-          <li>Generate a new <code>coverage.csv</code> for a different month.</li>
-          <li>Add a third shift type and the matching eligibility column.</li>
-          <li>Add a <code>locked_assignments.csv</code> file.</li>
-          <li>Add holiday balancing as a soft objective.</li>
-          <li>Add a rule that nobody works both Saturday and Sunday in the same weekend.</li>
+          <li>"Generate a new <code>coverage.csv</code> for a different month."</li>
+          <li>"Add a third shift type (NIGHT) and the matching eligibility column."</li>
+          <li>"Add a <code>locked_assignments.csv</code> file so I can pin specific people to specific shifts."</li>
+          <li>"Add a rule that nobody works both Saturday and Sunday of the same weekend."</li>
+          <li>"Add a soft preference for spreading holidays fairly."</li>
         </ul>
+
         <div class="note">
-          We will publish a separate writeup on when to use Codex, Claude Code, or a chat-only assistant for scheduling work, especially when medical operations data may be sensitive.
+          Each of those is sketched as a worked example in <code>docs/adaptation-cookbook.md</code>.
         </div>
       </div>
     </section>
 
-    <section id="privacy">
+    <!-- PRIVACY -->
+    <section id="privacy" class="band">
       <div class="wrap">
         <p class="kicker">Privacy</p>
-        <h2>Do not paste private schedules into public tools</h2>
-        <p>Even if there is no patient information, physician schedules, vacation requests, and internal group rules can still be sensitive. Start with dummy data. Replace names with IDs before testing your own setup.</p>
+        <h2>Don&rsquo;t paste private schedules into public tools.</h2>
+        <p>Even without patient information, physician schedules, vacation requests, and internal group rules can still be sensitive. Start with the dummy data. When you swap in your own, replace names with IDs first.</p>
         <ul>
-          <li>Do not upload real call history to public GitHub issues.</li>
-          <li>Do not paste real vacation requests into tools unless your group allows it.</li>
-          <li>Check retention and training settings before using an AI product.</li>
-          <li>Use synthetic examples when asking for help.</li>
+          <li>Don&rsquo;t upload real call history to public GitHub issues.</li>
+          <li>Don&rsquo;t paste real vacation requests into tools your group hasn&rsquo;t cleared.</li>
+          <li>Check retention and training settings on whatever AI tool you use.</li>
+          <li>When asking for help, use synthetic examples.</li>
         </ul>
-        <p>See <code>docs/agent-privacy.md</code> for a longer checklist.</p>
+        <p>The longer version is in <code>docs/agent-privacy.md</code>.</p>
       </div>
     </section>
 
-    <section id="next" class="band">
+    <!-- WHERE IT BREAKS -->
+    <section id="next">
       <div class="wrap">
         <p class="kicker">Where it breaks</p>
-        <h2>This gets hard when the rules become real</h2>
-        <p>The basic pattern is not magic. The hard part is making it work for an actual group: clean requests, historical fairness import, local exceptions, infeasible schedules, post-call recovery, locked assignments, holiday rotation, secure access, readable schedule views, distribution, and month-by-month maintenance.</p>
-        <p>That is where a maintained product starts to make sense. A real schedule needs more than a local script: requests in one place, history tracked over time, secure access, review before publishing, and a cleaner way to distribute the result to the group.</p>
-        <div class="cta-options">
-          <div class="cta-card">
-            <h3>For residents and DIY schedulers</h3>
-            <p>Want a simple hosted web version of this free tutorial? Send a note. If enough people want it, we will build the lightweight version first.</p>
-            <div class="button-row">
-              <a class="button" href="mailto:hello@niceschedule.com?subject=Web%20version%20of%20the%20AI%20schedule%20solver">Email me when it exists</a>
+        <h2>This gets hard when the rules become real.</h2>
+        <p>The basic pattern is not magic. The hard part is making it work for a real group: cleaning requests, importing historical fairness, modeling local exceptions, fixing infeasible months, post-call recovery, locked assignments, holiday rotation, secure access, readable schedule views, distribution, and month-over-month maintenance.</p>
+        <p>That is roughly the moment a DIY script stops being enough. A real schedule needs a place where requests live, where history is tracked across months, where people can be added or removed without breaking previous solves, and where the schedule can be safely shared with the group after it&rsquo;s reviewed.</p>
+        <p>If that&rsquo;s the wall you&rsquo;ve hit, see the cards below.</p>
+      </div>
+    </section>
+
+    <!-- END CTAS -->
+    <section id="share-end" class="band">
+      <div class="wrap">
+        <p class="kicker">One last thing</p>
+        <h2>Three ways this is useful to someone right now.</h2>
+        <div class="end-cards">
+          <div class="end-card">
+            <h3>Share it with the resident who&rsquo;s stuck.</h3>
+            <p>Every program has one. Senior or chief who got handed the spreadsheet, lost the weekend, and is going to be the hero who shows up Monday with a working solver. Every time they use this, they&rsquo;ll remember the friend who sent it.</p>
+            <div class="share-row" aria-label="Share this post (end)">
+              <a class="share-btn" href="https://www.reddit.com/submit?url=https%3A%2F%2Fniceschedule.com%2Fhow-to-make-a-schedule-with-ai%2F&amp;title=How%20to%20make%20a%20call%20schedule%20with%20AI%20that%20doesn%27t%20hallucinate%20(free%20walkthrough)" target="_blank" rel="noopener">r/Residency</a>
+              <a class="share-btn" href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fniceschedule.com%2Fhow-to-make-a-schedule-with-ai%2F&amp;text=Reddit%20said%20no%20AI%20could%20build%20the%20call%20schedule.%20They%20were%20half-right.%20Here%27s%20the%20free%20walkthrough%20%E2%86%92" target="_blank" rel="noopener">X</a>
+              <a class="share-btn" href="mailto:?subject=How%20to%20make%20a%20call%20schedule%20with%20AI&amp;body=Saw%20this%20and%20thought%20of%20you%20%E2%86%92%20https%3A%2F%2Fniceschedule.com%2Fhow-to-make-a-schedule-with-ai%2F">Email</a>
+              <button class="share-btn" type="button" data-copy-url>Copy link</button>
             </div>
           </div>
-          <div class="cta-card">
-            <h3>For real anesthesia groups</h3>
-            <p>If you do not want your group&rsquo;s call schedule depending on a vibe-coded script, book a NiceSchedule call and send us your current spreadsheet and rules.</p>
-            <div class="button-row">
-              <a class="button" href="mailto:hello@niceschedule.com?subject=NiceSchedule%20call%20for%20our%20anesthesia%20group">Book a NiceSchedule call</a>
-              <a class="button secondary" href="https://niceschedule.com/">See NiceSchedule</a>
-            </div>
+          <div class="end-card">
+            <h3>Should I host a web version?</h3>
+            <p>If you&rsquo;d rather not run Python locally &mdash; a hosted version with the same solver, a clean form for requests, and a one-click "build my schedule" button &mdash; email me and tell me what your group needs. If enough people want it, I&rsquo;ll build it next.</p>
+            <a class="button" href="mailto:moultrie@niceschedule.com?subject=Hosted%20web%20version%20of%20the%20AI%20schedule%20solver">Email me about the web version</a>
+          </div>
+          <div class="end-card">
+            <h3>Your group is past DIY?</h3>
+            <p>If you&rsquo;re running call for a real anesthesia group and don&rsquo;t want your schedule depending on a script someone vibe-coded, send me your current spreadsheet and the rules in your head. That&rsquo;s how we onboard. And if you know a doc who&rsquo;d be saved by this &mdash; forward them <a href="https://niceschedule.com">niceschedule.com</a>.</p>
+            <a class="button" href="mailto:hello@niceschedule.com?subject=NiceSchedule%20for%20our%20group">Send us your spreadsheet</a>
           </div>
         </div>
       </div>
@@ -1041,11 +1388,60 @@ Then help me run the sample command.</pre>
         <a href="/" class="wordmark">Nice<span>Schedule</span></a>
       </div>
       <div class="foot-links">
-        <a href="https://niceschedule.com/">NiceSchedule</a>
+        <a href="/">NiceSchedule</a>
         <a href="/anesthesia-scheduling-software/">Anesthesia scheduling software</a>
         <a href="/work-with-us/">Work with us</a>
       </div>
     </div>
   </footer>
+
+  <script>
+    // Copy-link share buttons
+    document.querySelectorAll('[data-copy-url]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var url = window.location.href.split('#')[0];
+        var original = btn.textContent;
+        navigator.clipboard.writeText(url).then(function() {
+          btn.textContent = 'Copied ✓';
+          setTimeout(function() { btn.textContent = original; }, 1800);
+        }).catch(function() {
+          // Fallback for older browsers / iOS Safari with permissions off
+          var ta = document.createElement('textarea');
+          ta.value = url;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); btn.textContent = 'Copied ✓'; } catch (e) { btn.textContent = 'Press ⌘C'; }
+          document.body.removeChild(ta);
+          setTimeout(function() { btn.textContent = original; }, 1800);
+        });
+      });
+    });
+
+    // Copy-block button (for the agent handoff prompt)
+    document.querySelectorAll('[data-copy-target]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var target = document.querySelector(btn.dataset.copyTarget);
+        if (!target) return;
+        var text = target.textContent;
+        var original = btn.textContent;
+        navigator.clipboard.writeText(text).then(function() {
+          btn.textContent = 'Copied ✓';
+          setTimeout(function() { btn.textContent = original; }, 1800);
+        }).catch(function() {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); btn.textContent = 'Copied ✓'; } catch (e) { btn.textContent = 'Press ⌘C'; }
+          document.body.removeChild(ta);
+          setTimeout(function() { btn.textContent = original; }, 1800);
+        });
+      });
+    });
+  </script>
 </body>
 </html>

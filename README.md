@@ -4,6 +4,8 @@ Use AI to help write scheduling constraints. Use OR-Tools CP-SAT to solve the sc
 
 This repo is a small, runnable example for people who are tempted to ask ChatGPT to make a call schedule directly. Do not do that. A language model can help translate your rules into code, but a deterministic solver should be responsible for the schedule.
 
+Background: this was inspired by a real r/Residency thread where a senior/chief resident asked how people make call schedules and the top reply said there is no replacement for getting it done in Excel: https://www.reddit.com/r/Residency/comments/1r4zdjx/for_all_the_seniorchief_residents_how_do_you_make/
+
 Start here:
 
 - Public walkthrough: https://niceschedule.com/how-to-make-a-schedule-with-ai/
