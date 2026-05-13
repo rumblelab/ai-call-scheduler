@@ -826,7 +826,7 @@
         </div>
 
         <h1>How to make a call schedule with AI that doesn&rsquo;t hallucinate.</h1>
-        <p class="lede">That reply is half right. <em>ChatGPT alone</em> won&rsquo;t build you a fair call schedule. It will gladly invent one that looks fine and quietly skips a vacation request. But ChatGPT plus a compact constraint solver will &mdash; deterministically, in about a minute. And the whole thing is free.</p>
+        <p class="lede">That reply is half right. <em>ChatGPT alone</em> won&rsquo;t build you a fair call schedule. It will gladly invent one that looks fine and quietly skips a vacation request. But ChatGPT plus a compact constraint solver will &mdash; deterministically, in seconds. And the whole thing is free.</p>
         <p>I built this for the senior resident, the chief, the fellow, the one partner in the group, the person who got handed the spreadsheet and is now spending every other weekend trying to make it fair. If that&rsquo;s you, follow along. If it&rsquo;s someone you know, send them this page.</p>
 
         <div class="byline">
@@ -1155,7 +1155,7 @@ Wrote 28 assignments to output/sample_schedule.csv</pre>
           <li>Total counts are within 1 of each clinician&rsquo;s target. No one is "the one who always covers."</li>
         </ul>
 
-        <p>That is the holy-shit moment, if you spent last weekend doing this in Excel. It came out of a single Python file in under a second.</p>
+        <p>That is the holy-shit moment, if you spent last weekend doing this in Excel. It came out of a single Python file in seconds &mdash; and this is the exact grid you&rsquo;ll get when you run <code>solver.py</code> on your own machine.</p>
 
         <div class="share-row" aria-label="Share this post (after output)">
           <span class="share-label">Send this to the resident who&rsquo;s stuck on it:</span>
@@ -1217,7 +1217,7 @@ Rules:
           <div class="panel-head">Paste this into ChatGPT or Claude</div>
           <div class="panel-body">
             <pre>I am using a call scheduler that needs a requests.csv file.
-Columns: request_id, clinician_id, start_date, end_date, request_type, hard, note.
+Columns: request_id, clinician_id, start_date, end_date, request_type, hard, shift_type, note.
 
 Here is a list of emails from residents:
 "[Paste messy email text here]"
@@ -1225,14 +1225,15 @@ Here is a list of emails from residents:
 And here is our clinician roster:
 "[Paste name list here]"
 
-Please generate the CSV rows. 
-Use clinician_id from the roster. 
-Assume hard=1 for vacation, hard=0 for 'prefer off'. 
+Please generate the CSV rows.
+Use clinician_id from the roster.
+Assume hard=1 for vacation, hard=0 for 'prefer off'.
+Leave shift_type blank to block all shifts that day; fill it in (e.g. OB) to block only one shift type.
 Dates in ISO format.</pre>
           </div>
         </div>
         <div class="voice">
-          <p>Once you have the CSV, save it to <code>data/my_data/requests.csv</code> and run the solver. If the solver says "Status: INFEASIBLE", it means one of those requests made it impossible to cover the shifts. You can then change a 1 to a 0 (making a request "soft") and re-solve.</p>
+          <p>Once you have the CSV, save it to <code>data/my_data/requests.csv</code> and run the solver. If the solver says <code>No feasible schedule found.</code>, one of those requests made it impossible to cover the shifts. Change a <code>1</code> to a <code>0</code> in the <code>hard</code> column (making the request soft) and re-solve, or remove the conflicting row.</p>
         </div>
       </div>
     </section>
@@ -1285,12 +1286,13 @@ My goal, in order:
 2. Explain to me in plain English what the solver did.
 3. Help me adapt one rule at a time.
 
-Before changing anything, please read these files:
+Before changing anything, please read these files in order:
+- README.md
 - docs/scheduler-agent-skill.md
 - docs/csv-schema.md
-- docs/agent-privacy.md
-- docs/troubleshooting.md
 - docs/adaptation-cookbook.md
+- docs/troubleshooting.md
+- docs/agent-privacy.md
 - config/sample_rules.json
 - data/sample/clinicians.csv
 - data/sample/coverage.csv
