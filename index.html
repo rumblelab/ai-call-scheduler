@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How to Make a Schedule With AI That Does Not Hallucinate | NiceSchedule</title>
+  <meta name="description" content="Use AI to help write scheduling constraints, then let OR-Tools CP-SAT generate a deterministic call schedule from CSV files.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://niceschedule.com/how-to-make-a-schedule-with-ai/">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="NiceSchedule">
+  <meta property="og:url" content="https://niceschedule.com/how-to-make-a-schedule-with-ai/">
+  <meta property="og:title" content="How to Make a Schedule With AI That Does Not Hallucinate">
+  <meta property="og:description" content="Do not ask ChatGPT to invent a schedule. Use AI to help write constraints, then let CP-SAT solve the schedule.">
+  <meta property="og:image" content="https://niceschedule.com/niceschedulescreenshot.png">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="How to Make a Schedule With AI That Does Not Hallucinate">
+  <meta name="twitter:description" content="Use AI to help write constraints, then let OR-Tools CP-SAT generate a deterministic call schedule from CSV files.">
+  <meta name="twitter:image" content="https://niceschedule.com/niceschedulescreenshot.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #fbfaf7;
+      --panel: #ffffff;
+      --panel-soft: #f4f1e8;
+      --ink: #101418;
+      --ink-2: #2d353d;
+      --muted: #66717a;
+      --rule: #e2dccf;
+      --rule-2: #eee8dc;
+      --accent: #153f63;
+      --green: #2f6b57;
+      --amber: #8a5a12;
+      --red: #963c2f;
+      --blue-soft: #e8f0f6;
+      --green-soft: #e7f2ed;
+      --amber-soft: #f8efd9;
+      --red-soft: #f8e7e3;
+      --font-serif: "EB Garamond", Georgia, serif;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --col: 760px;
+      --wide: 1120px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 84px;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-serif);
+      font-size: 19px;
+      line-height: 1.62;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .wordmark,
+    .site-cta,
+    .nav,
+    .kicker,
+    .meta,
+    .button,
+    .toc,
+    .panel,
+    .table-wrap,
+    .file-card,
+    .step-label,
+    .note,
+    footer {
+      font-family: var(--font-sans);
+    }
+
+    a {
+      color: var(--accent);
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1px;
+    }
+
+    header.site {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(251, 250, 247, 0.94);
+      border-bottom: 1px solid var(--rule);
+      backdrop-filter: blur(14px);
+    }
+
+    .site-inner {
+      max-width: var(--wide);
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .wordmark {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .wordmark span {
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .site-cta {
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 2px;
+    }
+
+    .agent-banner {
+      position: sticky;
+      top: 57px;
+      z-index: 15;
+      border-bottom: 1px solid #d7c69b;
+      background: #fff7df;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .agent-banner-inner {
+      max-width: var(--wide);
+      margin: 0 auto;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .agent-banner strong {
+      color: var(--ink);
+    }
+
+    .agent-banner a {
+      color: var(--accent);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    main {
+      overflow: hidden;
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: var(--col);
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .wide {
+      width: 100%;
+      max-width: var(--wide);
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .hero {
+      padding: 74px 0 48px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.72fr);
+      gap: 48px;
+      align-items: start;
+    }
+
+    .kicker {
+      margin: 0 0 14px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: var(--ink);
+      letter-spacing: 0;
+      line-height: 1.15;
+    }
+
+    h1 {
+      max-width: 12ch;
+      margin: 0 0 20px;
+      font-size: clamp(2.5rem, 5vw, 4.5rem);
+      line-height: 0.98;
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-size: clamp(1.65rem, 3vw, 2.25rem);
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-family: var(--font-sans);
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0 0 1em;
+      color: var(--ink-2);
+    }
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    ul,
+    ol {
+      margin: 0 0 1em;
+      padding-left: 22px;
+      color: var(--ink-2);
+    }
+
+    li {
+      margin-bottom: 7px;
+    }
+
+    .lede {
+      max-width: 58ch;
+      margin-bottom: 22px;
+      color: var(--ink-2);
+      font-size: 1.18rem;
+      line-height: 1.55;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin: 20px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 28px 0 0;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 13px 20px;
+      border: 1px solid var(--ink);
+      border-radius: 4px;
+      background: var(--ink);
+      color: var(--bg);
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.1;
+      text-decoration: none;
+    }
+
+    .button.secondary {
+      background: transparent;
+      color: var(--ink);
+    }
+
+    .button:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+
+    .toc {
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .toc-title {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .toc a {
+      display: block;
+      padding: 12px 16px;
+      border-top: 1px solid var(--rule-2);
+      color: var(--ink-2);
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    .toc a:first-of-type {
+      border-top: 0;
+    }
+
+    .toc a:hover {
+      background: #faf8f1;
+      color: var(--ink);
+    }
+
+    section {
+      padding: 70px 0;
+      border-top: 1px solid var(--rule);
+    }
+
+    .band {
+      background: var(--panel);
+    }
+
+    .quote {
+      margin: 24px 0;
+      padding: 20px 22px;
+      border-left: 3px solid var(--accent);
+      background: var(--blue-soft);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    .voice {
+      margin: 24px 0;
+      padding: 22px 24px;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel);
+      font-size: 1.03rem;
+    }
+
+    .note {
+      margin: 24px 0;
+      padding: 18px 20px;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      color: var(--ink-2);
+      font-size: 15px;
+    }
+
+    .note.good {
+      background: var(--green-soft);
+      border-color: #c7ded3;
+    }
+
+    .note.warning {
+      background: var(--red-soft);
+      border-color: #e1c7b8;
+    }
+
+    .plug {
+      margin: 28px 0;
+      padding: 22px 24px;
+      border: 1px solid #c7ded3;
+      border-radius: 8px;
+      background: var(--green-soft);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .plug strong {
+      color: var(--ink);
+    }
+
+    .plug p {
+      color: var(--ink-2);
+    }
+
+    .plug .button-row {
+      margin-top: 16px;
+    }
+
+    .cta-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 26px;
+    }
+
+    .cta-card {
+      padding: 22px 24px;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .cta-card h3 {
+      margin-bottom: 10px;
+    }
+
+    .cta-card .button-row {
+      margin-top: 18px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 22px;
+      margin-top: 28px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 18px;
+      padding-top: 22px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .step-label {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--rule);
+      border-radius: 50%;
+      background: var(--bg);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .panel {
+      margin: 26px 0;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .panel-body {
+      padding: 18px 20px;
+    }
+
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .file-card {
+      padding: 18px;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel);
+      font-size: 15px;
+    }
+
+    .file-card code {
+      display: inline-block;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    pre,
+    code {
+      font-family: var(--font-mono);
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: var(--panel-soft);
+      color: var(--ink);
+      font-size: 0.88em;
+    }
+
+    pre {
+      margin: 16px 0;
+      padding: 16px;
+      overflow-x: auto;
+      border-radius: 8px;
+      background: #111820;
+      color: #eaf0f5;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .table-wrap {
+      margin: 26px 0;
+      overflow-x: auto;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--rule);
+      border-right: 1px solid var(--rule-2);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th:last-child,
+    td:last-child {
+      border-right: 0;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    th {
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .cta {
+      background: var(--ink);
+      color: var(--bg);
+    }
+
+    .cta h2,
+    .cta p,
+    .cta a {
+      color: var(--bg);
+    }
+
+    .cta .button {
+      background: var(--bg);
+      border-color: var(--bg);
+      color: var(--ink);
+    }
+
+    footer {
+      padding: 40px 0 56px;
+      border-top: 1px solid var(--rule);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .foot-inner {
+      max-width: var(--wide);
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .foot-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .foot-links a {
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+    }
+
+    .foot-links a:hover {
+      border-bottom-color: var(--muted);
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid,
+      .file-grid,
+      .cta-options {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        font-size: 17px;
+      }
+
+      .site-inner {
+        padding: 14px 20px;
+      }
+
+      .hero {
+        padding: 52px 0 38px;
+      }
+
+      section {
+        padding: 56px 0;
+      }
+
+      h1 {
+        max-width: 14ch;
+        font-size: 2.45rem;
+      }
+
+      .step {
+        grid-template-columns: 42px 1fr;
+        gap: 14px;
+      }
+
+      .step-label {
+        width: 36px;
+        height: 36px;
+      }
+
+      .button-row .button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <div class="site-inner">
+      <a class="wordmark" href="/">Nice<span>Schedule</span></a>
+      <a class="site-cta" href="#agent">Copy agent handoff</a>
+    </div>
+  </header>
+
+  <div class="agent-banner">
+    <div class="agent-banner-inner">
+      <div><strong>If setup breaks:</strong> hand this page to Codex, Claude Code, ChatGPT, or another coding agent and ask it to run the dummy schedule with you.</div>
+      <a href="#agent">Copy handoff</a>
+    </div>
+  </div>
+
+  <main>
+    <section class="hero">
+      <div class="wide hero-grid">
+        <div>
+          <p class="kicker">AI plus constraint solving</p>
+          <h1>How to make a schedule with AI that does not hallucinate</h1>
+          <p class="lede">Do not ask ChatGPT to invent the schedule. Use AI to help write the rules, then let OR-Tools CP-SAT solve the schedule deterministically.</p>
+          <p>Once upon a time, if you asked an LLM how many r&rsquo;s are in strawberry, it might tell you two. Meanwhile, a tiny Python program would just count the string and return three.</p>
+          <p>That is the difference between a plausible answer and a checked answer. Your call schedule needs the checked answer.</p>
+          <div class="meta">
+            <span>Moultrie Ball</span>
+            <span>30 minute read</span>
+            <span>10 minutes to first dummy schedule</span>
+          </div>
+          <div class="button-row">
+            <a class="button" href="#run">Run the dummy solver</a>
+            <a class="button secondary" href="#coverage">Understand coverage.csv</a>
+          </div>
+          <div class="plug">
+            <p><strong>Shameless plug:</strong> this is free because residents, chief residents, fellows, and whoever got stuck making the call schedule should have a better option than asking ChatGPT to hallucinate a calendar.</p>
+            <p>If you want a simple hosted web version of this free tool, email me and I&rsquo;ll tell you if we build it. If you are doing this for a real anesthesia group and want schedules managed securely, book a NiceSchedule call.</p>
+            <div class="button-row">
+              <a class="button" href="mailto:hello@niceschedule.com?subject=Web%20version%20of%20the%20AI%20schedule%20solver">Tell me about the web version</a>
+              <a class="button secondary" href="mailto:hello@niceschedule.com?subject=NiceSchedule%20call%20for%20our%20anesthesia%20group">Book a NiceSchedule call</a>
+            </div>
+          </div>
+        </div>
+
+        <aside class="toc" aria-label="Table of contents">
+          <div class="toc-title">On this page</div>
+          <a href="#distinction">The distinction</a>
+          <a href="#rules">What v1 solves</a>
+          <a href="#files">The CSV files</a>
+          <a href="#run">Run dummy data first</a>
+          <a href="#coverage">Generate coverage.csv</a>
+          <a href="#agent">Hand this to an agent</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#next">What to add next</a>
+        </aside>
+      </div>
+    </section>
+
+    <section id="distinction" class="band">
+      <div class="wrap">
+        <p class="kicker">The distinction</p>
+        <h2>AI should translate rules. The solver should make the schedule.</h2>
+        <p>A language model predicts text. That makes it useful for explanation, code generation, and translating messy human rules into something more precise. It also means it can produce a schedule that looks reasonable while quietly breaking a vacation request, rest rule, or coverage requirement.</p>
+        <p>A constraint solver works differently. You give it variables, constraints, and an objective. It searches for assignments that satisfy the constraints. If the rules conflict, it can tell you there is no feasible schedule instead of making one up.</p>
+        <div class="quote">
+          The practical pattern is: use AI to help write the constraints, then use CP-SAT to solve the schedule.
+        </div>
+        <div class="voice">
+          <p>This is the part most "just use ChatGPT" posts miss. ChatGPT is not the scheduler. The solver is the scheduler. ChatGPT is the helper you use to write the solver, clean the inputs, explain errors, and add one rule at a time.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="rules">
+      <div class="wrap">
+        <p class="kicker">The v1 rule set</p>
+        <h2>Start with a small rule set that actually runs</h2>
+        <p>This sample solver is intentionally small. It is not a production anesthesia scheduler. The goal is to prove the workflow before adding real-world complexity.</p>
+        <ol>
+          <li>Cover every required shift in <code>coverage.csv</code>.</li>
+          <li>Respect shift eligibility in <code>clinicians.csv</code>.</li>
+          <li>Block hard vacation and no-call requests in <code>requests.csv</code>.</li>
+          <li>Assign each clinician to at most one shift per day.</li>
+          <li>Enforce a minimum rest gap between assignments.</li>
+          <li>Prefer fair total assignment counts.</li>
+          <li>Prefer fair weekend assignment counts.</li>
+          <li>Use prior <code>history.csv</code> assignments as part of the fairness picture.</li>
+          <li>Prefer more rest spacing when the hard rules leave room.</li>
+        </ol>
+        <div class="note good">
+          This is enough to get a useful dummy schedule. Real anesthesia groups usually add holiday rotation, partner versus non-partner allocation, site-specific coverage, backup call, post-call recovery, locked assignments, and local exceptions.
+        </div>
+      </div>
+    </section>
+
+    <section id="files" class="band">
+      <div class="wrap">
+        <p class="kicker">Inputs</p>
+        <h2>The four CSV files</h2>
+        <p>The solver reads structured CSVs instead of free-form text. That is what keeps the schedule grounded.</p>
+        <div class="file-grid">
+          <div class="file-card">
+            <code>clinicians.csv</code>
+            <p>Who can be scheduled, which shifts they can cover, target counts, max counts, and rest rules.</p>
+          </div>
+          <div class="file-card">
+            <code>coverage.csv</code>
+            <p>The demand file: each date, each shift type, and how many people are required.</p>
+          </div>
+          <div class="file-card">
+            <code>requests.csv</code>
+            <p>Vacation, no-call requests, and soft preferences. Hard requests block assignments.</p>
+          </div>
+          <div class="file-card">
+            <code>history.csv</code>
+            <p>Prior assignments used to make the new schedule fair against recent history.</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Example row</th>
+                <th>Meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>clinicians.csv</code></td>
+                <td><code>fox,A. Fox,1,1.0,1,1,5,6,2,3,1</code></td>
+                <td>A. Fox is active, can cover OR and OB, targets 5 shifts, maxes at 6, targets 2 weekend shifts.</td>
+              </tr>
+              <tr>
+                <td><code>coverage.csv</code></td>
+                <td><code>2026-06-01,OB,1</code></td>
+                <td>June 1 needs one OB clinician.</td>
+              </tr>
+              <tr>
+                <td><code>requests.csv</code></td>
+                <td><code>r1,cary,2026-06-05,2026-06-07,vacation,1,,Family trip</code></td>
+                <td>M. Cary cannot be assigned to any shift from June 5 through June 7.</td>
+              </tr>
+              <tr>
+                <td><code>history.csv</code></td>
+                <td><code>2026-05-02,fox,OR,final</code></td>
+                <td>A. Fox covered OR on May 2, which counts toward fairness history.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="run">
+      <div class="wrap">
+        <p class="kicker">First run</p>
+        <h2>Run the dummy data before touching your own data</h2>
+        <p>Do not debug Python, CSV formatting, and your real scheduling rules at the same time. First prove the sample works.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-label">01</div>
+            <div>
+              <h3>Create a virtual environment</h3>
+              <pre>python3 -m venv .venv</pre>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-label">02</div>
+            <div>
+              <h3>Install OR-Tools</h3>
+              <pre>.venv/bin/python -m pip install -r requirements.txt</pre>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-label">03</div>
+            <div>
+              <h3>Run the solver</h3>
+              <pre>.venv/bin/python solver.py</pre>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-label">04</div>
+            <div>
+              <h3>Inspect the output</h3>
+              <pre>Status: OPTIMAL
+Wrote 28 assignments to output/sample_schedule.csv</pre>
+              <p>Open <code>output/sample_schedule.csv</code>. You should see an assignment for every required OR and OB shift in the sample period.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="note warning">
+          Do not move to real data until the dummy schedule works. When you do move to real data, replace names with IDs first.
+        </div>
+
+        <div class="plug">
+          <p><strong>If this is too much setup:</strong> that is useful feedback. This tutorial is free, but a hosted web version would make the dummy-data path easier for residents and DIY schedulers.</p>
+          <div class="button-row">
+            <a class="button" href="mailto:hello@niceschedule.com?subject=Web%20version%20of%20the%20AI%20schedule%20solver">Email me when the web version exists</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="coverage" class="band">
+      <div class="wrap">
+        <p class="kicker">Demand generation</p>
+        <h2><code>coverage.csv</code> is the list of shifts the solver must fill</h2>
+        <p>Yes: <code>coverage.csv</code> is basically the thing you need to fill out. It is the demand side of the schedule. If a row exists, the solver tries to staff it. If a row is missing, the solver does not know that shift exists.</p>
+        <p>You do not have to type it by hand. In fact, you probably should not. If your coverage pattern is regular, have a small script generate it.</p>
+        <div class="panel">
+          <div class="panel-head">Natural language to coverage.csv</div>
+          <div class="panel-body">
+            <p>You can tell an agent:</p>
+            <pre>Create a Python script that writes coverage.csv for June 2026.
+Rules:
+- Every Saturday and Sunday needs one NORTH call and one SOUTH call.
+- Weekdays do not need call coverage in this example.
+- Output columns must be: date,shift_type,required_count.
+- Dates must be ISO format YYYY-MM-DD.</pre>
+            <p>That script should produce rows like:</p>
+            <pre>date,shift_type,required_count
+2026-06-06,NORTH,1
+2026-06-06,SOUTH,1
+2026-06-07,NORTH,1
+2026-06-07,SOUTH,1</pre>
+          </div>
+        </div>
+        <p>The same pattern works for more complex demand:</p>
+        <ul>
+          <li>one OB call every day</li>
+          <li>two OR calls on weekdays and one OR call on weekends</li>
+          <li>different sites like <code>NORTH</code>, <code>SOUTH</code>, and <code>OB</code></li>
+          <li>holiday-specific call requirements</li>
+          <li>higher required counts on known heavy days</li>
+        </ul>
+        <div class="note">
+          When you add a new shift type to <code>coverage.csv</code>, add a matching eligibility column in <code>clinicians.csv</code>. For example, shift type <code>NORTH</code> expects <code>can_north</code>.
+        </div>
+      </div>
+    </section>
+
+    <section id="customize">
+      <div class="wrap">
+        <p class="kicker">Customization</p>
+        <h2>After the sample works, copy the data and change one thing at a time</h2>
+        <p>Make your own data folder:</p>
+        <pre>cp -R data/sample data/my_data</pre>
+        <p>Then create your own config file:</p>
+        <pre>cp config/sample_rules.json config/my_rules.json</pre>
+        <p>In <code>config/my_rules.json</code>, change:</p>
+        <pre>{
+  "input_dir": "data/my_data",
+  "output_csv": "output/my_schedule.csv"
+}</pre>
+        <p>Run it:</p>
+        <pre>.venv/bin/python solver.py --config config/my_rules.json</pre>
+        <p>Change one file at a time. First clinicians. Then coverage. Then requests. Then history. If the model becomes infeasible, the newest change is usually where to start looking.</p>
+        <div class="plug">
+          <p><strong>This is where real teams usually stop wanting DIY.</strong> The script can generate a schedule, but it does not give your group a safe place to submit requests, approve exceptions, publish updates, or preserve the fairness record month after month. NiceSchedule is built for that hosted workflow.</p>
+          <div class="button-row">
+            <a class="button" href="/anesthesia-call-schedule/">See anesthesia call schedule software</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="agent" class="band">
+      <div class="wrap">
+        <p class="kicker">Agent handoff</p>
+        <h2>If you run into issues, hand this page to your coding agent</h2>
+        <p>This tutorial is designed so an agent can help. Codex, Claude Code, ChatGPT, or another coding assistant can read the page, inspect the CSVs, run the dummy solve, and then help you adapt one rule at a time.</p>
+        <p>The file <code>docs/scheduler-agent-skill.md</code> gives the agent a lightweight scheduling playbook: hard constraints, soft preferences, coverage first, dummy data first, and one rule at a time.</p>
+        <div class="panel">
+          <div class="panel-head">Copy this whole block into your agent</div>
+          <div class="panel-body">
+            <pre>I am trying to use the free NiceSchedule call schedule solver tutorial.
+
+Public walkthrough:
+https://niceschedule.com/how-to-make-a-schedule-with-ai/
+
+GitHub repo:
+https://github.com/rumblelab/ai-call-scheduler
+
+My goal:
+First, help me run the dummy data exactly as-is.
+Second, help me understand the CSV files.
+Third, help me adapt one rule at a time.
+
+Please read these files before changing anything:
+- index.html or index.md
+- docs/scheduler-agent-skill.md
+- docs/csv-schema.md
+- docs/agent-privacy.md
+- config/sample_rules.json
+- data/sample/clinicians.csv
+- data/sample/coverage.csv
+- data/sample/requests.csv
+- data/sample/history.csv
+- solver.py
+
+Safety rules:
+- Do not ask me for real names yet.
+- Do not ask me for real vacation data yet.
+- Do not use real schedules until the dummy solve works.
+- If you need example data, invent fake data.
+- Add one rule at a time.
+- After each change, tell me exactly how to test it.
+
+Start by explaining what this solver currently does in plain English.
+Then help me run the sample command.</pre>
+          </div>
+        </div>
+        <p>Good first agent tasks:</p>
+        <ul>
+          <li>Generate a new <code>coverage.csv</code> for a different month.</li>
+          <li>Add a third shift type and the matching eligibility column.</li>
+          <li>Add a <code>locked_assignments.csv</code> file.</li>
+          <li>Add holiday balancing as a soft objective.</li>
+          <li>Add a rule that nobody works both Saturday and Sunday in the same weekend.</li>
+        </ul>
+        <div class="note">
+          We will publish a separate writeup on when to use Codex, Claude Code, or a chat-only assistant for scheduling work, especially when medical operations data may be sensitive.
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <div class="wrap">
+        <p class="kicker">Privacy</p>
+        <h2>Do not paste private schedules into public tools</h2>
+        <p>Even if there is no patient information, physician schedules, vacation requests, and internal group rules can still be sensitive. Start with dummy data. Replace names with IDs before testing your own setup.</p>
+        <ul>
+          <li>Do not upload real call history to public GitHub issues.</li>
+          <li>Do not paste real vacation requests into tools unless your group allows it.</li>
+          <li>Check retention and training settings before using an AI product.</li>
+          <li>Use synthetic examples when asking for help.</li>
+        </ul>
+        <p>See <code>docs/agent-privacy.md</code> for a longer checklist.</p>
+      </div>
+    </section>
+
+    <section id="next" class="band">
+      <div class="wrap">
+        <p class="kicker">Where it breaks</p>
+        <h2>This gets hard when the rules become real</h2>
+        <p>The basic pattern is not magic. The hard part is making it work for an actual group: clean requests, historical fairness import, local exceptions, infeasible schedules, post-call recovery, locked assignments, holiday rotation, secure access, readable schedule views, distribution, and month-by-month maintenance.</p>
+        <p>That is where a maintained product starts to make sense. A real schedule needs more than a local script: requests in one place, history tracked over time, secure access, review before publishing, and a cleaner way to distribute the result to the group.</p>
+        <div class="cta-options">
+          <div class="cta-card">
+            <h3>For residents and DIY schedulers</h3>
+            <p>Want a simple hosted web version of this free tutorial? Send a note. If enough people want it, we will build the lightweight version first.</p>
+            <div class="button-row">
+              <a class="button" href="mailto:hello@niceschedule.com?subject=Web%20version%20of%20the%20AI%20schedule%20solver">Email me when it exists</a>
+            </div>
+          </div>
+          <div class="cta-card">
+            <h3>For real anesthesia groups</h3>
+            <p>If you do not want your group&rsquo;s call schedule depending on a vibe-coded script, book a NiceSchedule call and send us your current spreadsheet and rules.</p>
+            <div class="button-row">
+              <a class="button" href="mailto:hello@niceschedule.com?subject=NiceSchedule%20call%20for%20our%20anesthesia%20group">Book a NiceSchedule call</a>
+              <a class="button secondary" href="/anesthesia-call-schedule/">See call schedule software</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="foot-inner">
+      <div>
+        <a href="/" class="wordmark">Nice<span>Schedule</span></a>
+      </div>
+      <div class="foot-links">
+        <a href="/anesthesia-call-schedule/">Call schedule software</a>
+        <a href="/anesthesia-scheduling-software/">Anesthesia scheduling software</a>
+        <a href="/work-with-us/">Work with us</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,7 @@
+clinician_id,name,active,fte,can_or,can_ob,target_shifts,max_shifts,target_weekend_shifts,max_weekend_shifts,min_days_between_assignments
+cary,M. Cary,1,1.0,1,1,4,6,1,2,1
+fox,A. Fox,1,1.0,1,1,5,6,2,3,1
+aken,R. Aken,1,1.0,1,0,4,6,1,2,1
+johns,C. Johns,1,1.0,0,1,4,6,1,2,1
+judy,J. Judy,1,1.0,1,1,5,6,2,3,1
+reed,S. Reed,1,0.8,1,1,4,5,1,2,1

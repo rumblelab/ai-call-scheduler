@@ -1,0 +1,5 @@
+request_id,clinician_id,start_date,end_date,request_type,hard,shift_type,note
+r1,cary,2026-06-05,2026-06-07,vacation,1,,Family trip
+r2,johns,2026-06-10,2026-06-10,no_call,1,OB,Clinic coverage next morning
+r3,fox,2026-06-13,2026-06-13,prefer_off,0,,Prefer no weekend call if possible
+r4,reed,2026-06-02,2026-06-02,no_call,1,,Part-time admin day
