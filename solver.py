@@ -60,7 +60,10 @@ def parse_int(value: str, default: int = 0) -> int:
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
-    with path.open(newline="") as f:
+    # utf-8-sig strips the byte-order mark Excel writes when you "Save as CSV UTF-8".
+    # Without this, the first header (e.g. clinician_id) shows up as "﻿clinician_id"
+    # and every row lookup silently misses.
+    with path.open(newline="", encoding="utf-8-sig") as f:
         return list(csv.DictReader(f))
 
 
@@ -153,6 +156,295 @@ def request_matches(request: RequestRow, day: date, shift_type: str) -> bool:
     return request.shift_type is None or request.shift_type == shift_type
 
 
+# Color pairs (background, ink) used by the HTML schedule renderer for each
+# shift type. OR and OB match the sample article styling; common adaptations
+# (NIGHT, BACKUP, CARDIAC, NORTH/SOUTH/EAST/WEST sites, ICU, TRAUMA, PEDS) get
+# their own colors so the schedule renders nicely without code edits.
+SHIFT_PALETTE = {
+    "OR":      ("#e3edf5", "#1a4769"),
+    "OB":      ("#f4e8d3", "#6e4a16"),
+    "NIGHT":   ("#2d353d", "#fbfaf7"),
+    "BACKUP":  ("#e7f2ed", "#2f6b57"),
+    "CARDIAC": ("#f8e7e3", "#963c2f"),
+    "NORTH":   ("#dfe6f0", "#2a4a73"),
+    "SOUTH":   ("#ecdcd1", "#6e4a3a"),
+    "EAST":    ("#e6efd9", "#4a6824"),
+    "WEST":    ("#ead9ec", "#5a3a6e"),
+    "ICU":     ("#d8e4ec", "#1a4969"),
+    "TRAUMA":  ("#f4d8d6", "#7a2a22"),
+    "PEDS":    ("#e6efd9", "#4a6824"),
+}
+
+# Stable fallback palette for any shift type not listed above. Picked by a
+# deterministic hash of the shift name so the same shift always gets the same
+# color across re-runs.
+SHIFT_FALLBACK_PALETTE = [
+    ("#e3edf5", "#1a4769"),
+    ("#f4e8d3", "#6e4a16"),
+    ("#e7f2ed", "#2f6b57"),
+    ("#f8e7e3", "#963c2f"),
+    ("#ddd6ec", "#4a3a6e"),
+    ("#ecdcd1", "#6e4a3a"),
+    ("#d8e4ec", "#1a4969"),
+    ("#f4d8d6", "#7a2a22"),
+]
+
+VAC_COLORS = ("#efe9da", "#8a6a2e")
+
+
+def shift_colors(shift_type: str) -> tuple[str, str]:
+    key = shift_type.upper()
+    if key in SHIFT_PALETTE:
+        return SHIFT_PALETTE[key]
+    idx = sum(ord(c) for c in key) % len(SHIFT_FALLBACK_PALETTE)
+    return SHIFT_FALLBACK_PALETTE[idx]
+
+
+def shift_css_class(shift_type: str) -> str:
+    # Prefix avoids collisions with built-in CSS class names and HTML elements.
+    return "s-" + shift_type.lower().replace(" ", "_").replace("-", "_")
+
+
+def write_html_schedule(
+    output_path: Path,
+    coverage: list[CoverageRow],
+    clinicians: dict[str, dict[str, str]],
+    assignments: list[dict[str, str]],
+    requests: list[RequestRow],
+):
+    all_dates = sorted({c.date for c in coverage})
+    if not all_dates:
+        return
+
+    clinician_ids = sorted(clinicians.keys(), key=lambda cid: clinicians[cid]["name"])
+    num_days = len(all_dates)
+
+    assignment_map: dict[tuple[date, str], list[str]] = defaultdict(list)
+    for a in assignments:
+        d = datetime.strptime(a["date"], "%Y-%m-%d").date()
+        assignment_map[(d, a["clinician_id"])].append(a["shift_type"])
+
+    vacation_map: dict[tuple[date, str], bool] = {}
+    for r in requests:
+        if r.hard:
+            for d in dates_between(r.start_date, r.end_date):
+                vacation_map[(d, r.clinician_id)] = True
+
+    # Shift types actually present in this schedule, in display order.
+    shift_types = sorted({c.shift_type for c in coverage})
+
+    # Per-shift CSS — generated from the palette so adaptations get colors for free.
+    shift_css = ""
+    for st in shift_types:
+        bg, ink = shift_colors(st)
+        cls = shift_css_class(st)
+        shift_css += (
+            f"    .gcell.{cls} {{ background: {bg}; color: {ink}; "
+            f"font-weight: 700; }}\n"
+            f"    .swatch.{cls} {{ background: {bg}; border-color: {ink}33; }}\n"
+        )
+    vac_bg, vac_ink = VAC_COLORS
+    shift_css += (
+        f"    .gcell.vac {{ background: {vac_bg}; color: {vac_ink}; "
+        f"font-weight: 700; font-style: italic; }}\n"
+        f"    .swatch.vac {{ background: {vac_bg}; border-color: {vac_ink}55; }}\n"
+    )
+
+    css = (
+        """
+    :root {
+      --bg: #fbfaf7;
+      --panel: #ffffff;
+      --panel-soft: #f4f1e8;
+      --ink: #101418;
+      --muted: #66717a;
+      --rule: #e2dccf;
+      --rule-2: #eee8dc;
+      --accent: #153f63;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header { margin-bottom: 30px; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    .subtitle { color: var(--muted); font-size: 14px; }
+
+    .grid-frame {
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: 0 16px 30px -22px rgba(15, 53, 86, 0.18);
+    }
+    .grid-frame-scroll { overflow-x: auto; }
+    .grid-schedule {
+      display: grid;
+      min-width: 800px;
+      font-size: 12px;
+    }
+    .gh {
+      padding: 10px 6px;
+      border-bottom: 1px solid var(--rule);
+      border-right: 1px solid var(--rule-2);
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .gh.corner { text-align: left; padding-left: 14px; }
+    .gh.weekend { background: #efe7d2; }
+
+    .gname {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--rule-2);
+      border-right: 1px solid var(--rule);
+      background: #faf7ee;
+      color: var(--ink);
+      font-weight: 700;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+    }
+    .gcell {
+      padding: 12px 4px;
+      border-bottom: 1px solid var(--rule-2);
+      border-right: 1px solid var(--rule-2);
+      text-align: center;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .gcell.weekend { background: #fbf7ea; }
+    .gcell.empty { color: #c8cfd6; }
+"""
+        + shift_css
+        + """
+    .grid-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin: 20px 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .lg { display: inline-flex; align-items: center; gap: 8px; }
+    .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid var(--rule);
+    }
+
+    footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--rule);
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .watermark a { color: var(--accent); text-decoration: none; font-weight: 700; }
+    @media print {
+      body { padding: 0; }
+      .grid-frame { box-shadow: none; border-radius: 0; }
+    }
+    """
+    )
+
+    # Header row.
+    header_html = '<div class="gh corner">Clinician</div>\n'
+    for d in all_dates:
+        weekend_cls = " weekend" if is_weekend(d) else ""
+        header_html += f'<div class="gh{weekend_cls}">{d.strftime("%a %-d")}</div>\n'
+
+    # Clinician rows.
+    rows_html = ""
+    for cid in clinician_ids:
+        rows_html += f'<div class="gname">{clinicians[cid]["name"]}</div>\n'
+        for d in all_dates:
+            weekend_cls = " weekend" if is_weekend(d) else ""
+            shifts = assignment_map.get((d, cid), [])
+            is_vac = vacation_map.get((d, cid), False)
+
+            if shifts:
+                # If the same person is somehow on two shifts the same day,
+                # show them stacked rather than dropping one silently.
+                label = " / ".join(shifts)
+                cls = shift_css_class(shifts[0])
+                rows_html += (
+                    f'<div class="gcell{weekend_cls} {cls}">{label}</div>\n'
+                )
+            elif is_vac:
+                rows_html += f'<div class="gcell{weekend_cls} vac">VAC</div>\n'
+            else:
+                rows_html += f'<div class="gcell{weekend_cls} empty">&middot;</div>\n'
+
+    # Legend — one entry per shift type actually used, then VAC.
+    legend_items = ""
+    for st in shift_types:
+        cls = shift_css_class(st)
+        legend_items += (
+            f'<span class="lg"><span class="swatch {cls}"></span> {st} call</span>\n'
+        )
+    legend_items += (
+        '<span class="lg"><span class="swatch vac"></span> Vacation / hard block</span>\n'
+    )
+
+    start_date_str = all_dates[0].strftime("%B %-d, %Y")
+    end_date_str = all_dates[-1].strftime("%B %-d, %Y")
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Call Schedule | NiceSchedule</title>
+  <style>{css}</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Call Schedule</h1>
+      <div class="subtitle">{start_date_str} &ndash; {end_date_str}</div>
+    </header>
+
+    <div class="grid-frame">
+      <div class="grid-frame-scroll">
+        <div class="grid-schedule" style="grid-template-columns: 120px repeat({num_days}, minmax(60px, 1fr));">
+          {header_html}
+          {rows_html}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-legend">
+      {legend_items}
+    </div>
+
+    <footer>
+      <div>Generated on {date.today().strftime("%B %-d, %Y")}</div>
+      <div class="watermark">Built with <a href="https://niceschedule.com">NiceSchedule.com</a></div>
+    </footer>
+  </div>
+</body>
+</html>
+"""
+    with output_path.open("w") as f:
+        f.write(html)
+
+
 def solve(config_path: Path) -> int:
     # The config file tells the solver where to find input CSVs, where to write
     # output, and how strongly to weight soft preferences.
@@ -171,6 +463,12 @@ def solve(config_path: Path) -> int:
         raise ValueError("No active clinicians found.")
     if not coverage:
         raise ValueError("No coverage rows found.")
+
+    for clinician_id in set(history_total) | set(history_weekend):
+        if clinician_id not in clinicians:
+            raise ValueError(
+                f"history.csv references unknown clinician {clinician_id!r}."
+            )
 
     # Every shift type in coverage.csv needs a matching eligibility column in
     # clinicians.csv. For example, OR expects can_or and OB expects can_ob.
@@ -368,8 +666,15 @@ def solve(config_path: Path) -> int:
     model.Minimize(sum(objective_terms))
 
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 20
+    solver.parameters.max_time_in_seconds = 60
+    # Reproducible by default: same inputs always produce the same schedule on
+    # any machine. That lets the article show a specific arrangement and have
+    # it actually match what a reader gets when they run the solver.
+    # interleave_search + random_seed makes parallel search deterministic;
+    # without interleave_search, 8 workers are faster but non-reproducible.
     solver.parameters.num_search_workers = 8
+    solver.parameters.random_seed = 1
+    solver.parameters.interleave_search = True
     status = solver.Solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -397,6 +702,10 @@ def solve(config_path: Path) -> int:
         )
         writer.writeheader()
         writer.writerows(rows)
+
+    # Generate HTML version
+    html_output_path = output_path.with_suffix(".html")
+    write_html_schedule(html_output_path, coverage, clinicians, rows, requests)
 
     status_name = "OPTIMAL" if status == cp_model.OPTIMAL else "FEASIBLE"
     print(f"Status: {status_name}")

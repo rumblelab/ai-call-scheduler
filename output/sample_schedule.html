@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Call Schedule | NiceSchedule</title>
+  <style>
+    :root {
+      --bg: #fbfaf7;
+      --panel: #ffffff;
+      --panel-soft: #f4f1e8;
+      --ink: #101418;
+      --muted: #66717a;
+      --rule: #e2dccf;
+      --rule-2: #eee8dc;
+      --accent: #153f63;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header { margin-bottom: 30px; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    .subtitle { color: var(--muted); font-size: 14px; }
+
+    .grid-frame {
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: 0 16px 30px -22px rgba(15, 53, 86, 0.18);
+    }
+    .grid-frame-scroll { overflow-x: auto; }
+    .grid-schedule {
+      display: grid;
+      min-width: 800px;
+      font-size: 12px;
+    }
+    .gh {
+      padding: 10px 6px;
+      border-bottom: 1px solid var(--rule);
+      border-right: 1px solid var(--rule-2);
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .gh.corner { text-align: left; padding-left: 14px; }
+    .gh.weekend { background: #efe7d2; }
+
+    .gname {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--rule-2);
+      border-right: 1px solid var(--rule);
+      background: #faf7ee;
+      color: var(--ink);
+      font-weight: 700;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+    }
+    .gcell {
+      padding: 12px 4px;
+      border-bottom: 1px solid var(--rule-2);
+      border-right: 1px solid var(--rule-2);
+      text-align: center;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .gcell.weekend { background: #fbf7ea; }
+    .gcell.empty { color: #c8cfd6; }
+    .gcell.s-ob { background: #f4e8d3; color: #6e4a16; font-weight: 700; }
+    .swatch.s-ob { background: #f4e8d3; border-color: #6e4a1633; }
+    .gcell.s-or { background: #e3edf5; color: #1a4769; font-weight: 700; }
+    .swatch.s-or { background: #e3edf5; border-color: #1a476933; }
+    .gcell.vac { background: #efe9da; color: #8a6a2e; font-weight: 700; font-style: italic; }
+    .swatch.vac { background: #efe9da; border-color: #8a6a2e55; }
+
+    .grid-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin: 20px 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .lg { display: inline-flex; align-items: center; gap: 8px; }
+    .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid var(--rule);
+    }
+
+    footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--rule);
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .watermark a { color: var(--accent); text-decoration: none; font-weight: 700; }
+    @media print {
+      body { padding: 0; }
+      .grid-frame { box-shadow: none; border-radius: 0; }
+    }
+    </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Call Schedule</h1>
+      <div class="subtitle">June 1, 2026 &ndash; June 14, 2026</div>
+    </header>
+
+    <div class="grid-frame">
+      <div class="grid-frame-scroll">
+        <div class="grid-schedule" style="grid-template-columns: 120px repeat(14, minmax(60px, 1fr));">
+          <div class="gh corner">Clinician</div>
+<div class="gh">Mon 1</div>
+<div class="gh">Tue 2</div>
+<div class="gh">Wed 3</div>
+<div class="gh">Thu 4</div>
+<div class="gh">Fri 5</div>
+<div class="gh weekend">Sat 6</div>
+<div class="gh weekend">Sun 7</div>
+<div class="gh">Mon 8</div>
+<div class="gh">Tue 9</div>
+<div class="gh">Wed 10</div>
+<div class="gh">Thu 11</div>
+<div class="gh">Fri 12</div>
+<div class="gh weekend">Sat 13</div>
+<div class="gh weekend">Sun 14</div>
+
+          <div class="gname">A. Fox</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell weekend s-ob">OB</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell weekend s-or">OR</div>
+<div class="gname">C. Johns</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell vac">VAC</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell weekend s-ob">OB</div>
+<div class="gname">J. Judy</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell weekend s-or">OR</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell weekend s-ob">OB</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gname">M. Cary</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell vac">VAC</div>
+<div class="gcell weekend vac">VAC</div>
+<div class="gcell weekend vac">VAC</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell weekend s-or">OR</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gname">R. Aken</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell weekend s-or">OR</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-or">OR</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gname">S. Reed</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell vac">VAC</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell weekend s-ob">OB</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell empty">&middot;</div>
+<div class="gcell s-ob">OB</div>
+<div class="gcell weekend empty">&middot;</div>
+<div class="gcell weekend empty">&middot;</div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-legend">
+      <span class="lg"><span class="swatch s-ob"></span> OB call</span>
+<span class="lg"><span class="swatch s-or"></span> OR call</span>
+<span class="lg"><span class="swatch vac"></span> Vacation / hard block</span>
+
+    </div>
+
+    <footer>
+      <div>Generated on May 13, 2026</div>
+      <div class="watermark">Built with <a href="https://niceschedule.com">NiceSchedule.com</a></div>
+    </footer>
+  </div>
+</body>
+</html>

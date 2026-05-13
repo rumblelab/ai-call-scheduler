@@ -40,15 +40,18 @@ If you want a simple hosted web version of this free tool, email me and I will t
 > Third, help me adapt one rule at a time.
 >
 > Please read these files before changing anything:
-> - index.html or index.md
+> - README.md
 > - docs/scheduler-agent-skill.md
 > - docs/csv-schema.md
+> - docs/adaptation-cookbook.md
+> - docs/troubleshooting.md
 > - docs/agent-privacy.md
 > - config/sample_rules.json
 > - data/sample/clinicians.csv
 > - data/sample/coverage.csv
 > - data/sample/requests.csv
 > - data/sample/history.csv
+> - scripts/generate_coverage.py
 > - solver.py
 >
 > Safety rules:
@@ -98,9 +101,10 @@ That is enough to show the pattern. It is not a production anesthesia scheduler.
 ## Folder structure
 
 ```text
-how-to-make-a-schedule-with-ai/
+ai-call-scheduler/
   solver.py
   requirements.txt
+  README.md
   config/
     sample_rules.json
   data/
@@ -110,14 +114,17 @@ how-to-make-a-schedule-with-ai/
       coverage.csv
       history.csv
   output/
-    sample_schedule.csv
+    sample_schedule.csv        # written by solver.py
+    sample_schedule.html       # printable grid, also written by solver.py
+  scripts/
+    generate_coverage.py
   docs/
     scheduler-agent-skill.md
     csv-schema.md
+    adaptation-cookbook.md
+    troubleshooting.md
     agent-privacy.md
 ```
-
-The old Google Sheet export files in this folder are early drafts. The files in `data/sample/` are the cleaner v1 schema.
 
 ## Step 1: run the dummy schedule first
 
@@ -295,9 +302,10 @@ https://niceschedule.com/how-to-make-a-schedule-with-ai/
 GitHub repo:
 https://github.com/rumblelab/ai-call-scheduler
 
-Read docs/scheduler-agent-skill.md, docs/csv-schema.md,
-docs/agent-privacy.md, config/sample_rules.json, the CSV files in data/sample,
-and solver.py.
+Read README.md, docs/scheduler-agent-skill.md, docs/csv-schema.md,
+docs/adaptation-cookbook.md, docs/troubleshooting.md, docs/agent-privacy.md,
+config/sample_rules.json, the CSV files in data/sample,
+scripts/generate_coverage.py, and solver.py.
 
 First explain the current rule set back to me in plain English.
 Then help me add this one rule:

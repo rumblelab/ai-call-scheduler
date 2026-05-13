@@ -6,3 +6,4 @@ __pycache__/
 # Keep sample output committed, but ignore ad hoc generated schedules.
 output/*
 !output/sample_schedule.csv
+!output/sample_schedule.html

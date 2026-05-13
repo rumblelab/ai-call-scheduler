@@ -6,6 +6,18 @@ Use this when helping a human build or modify the sample call schedule solver.
 
 Do not ask a language model to invent the schedule directly. Use the language model to translate human rules into explicit data, constraints, and objective terms. The solver must produce the schedule.
 
+## Files to read first
+
+Always read these before editing anything:
+
+- `README.md` — front door and quick start
+- `docs/csv-schema.md` — every column in every input file
+- `docs/adaptation-cookbook.md` — worked examples for common rule additions
+- `docs/troubleshooting.md` — every error the solver can raise
+- `docs/agent-privacy.md` — what not to do with real physician data
+- `config/sample_rules.json` and the four CSVs in `data/sample/`
+- `solver.py`
+
 ## What the v1 Solver Does
 
 The sample solver is intentionally small. It should:
@@ -17,7 +29,10 @@ The sample solver is intentionally small. It should:
 5. Enforce minimum rest days between assignments.
 6. Prefer fair total assignment counts.
 7. Prefer fair weekend assignment counts.
-8. Prefer more spacing between assignments when the hard rules leave room.
+8. Pull down whoever covered the most recent months (uses `history.csv`).
+9. Prefer more spacing between assignments when the hard rules leave room.
+
+It also writes a printable HTML version of the schedule next to the CSV output. Colors for any shift type (existing or new) are picked automatically from `SHIFT_PALETTE` in `solver.py`.
 
 ## Conversation Pattern
 
@@ -64,11 +79,19 @@ Solver translation:
 - If the model becomes infeasible, remove the newest rule first and inspect which coverage rows are hardest to fill.
 - Keep hard rules and soft preferences separate.
 
+## Adapting the solver
+
+Common rule additions (third shift type, locked assignments, weekend-pairing constraints, holiday balancing, post-call recovery, partner-vs-non-partner) are walked through in `docs/adaptation-cookbook.md`. Read it before suggesting any code change — the pattern of *change one thing, re-run, verify* applies to all of them.
+
+When the solver errors, `docs/troubleshooting.md` has the exact text of every `ValueError` it can raise plus the fix.
+
 ## Good User Prompt
 
 ```text
 I am using the sample call schedule solver from this folder.
-Read docs/scheduler-agent-skill.md, config/sample_rules.json, and the CSV files in data/sample.
+Read docs/scheduler-agent-skill.md, docs/csv-schema.md,
+docs/adaptation-cookbook.md, docs/troubleshooting.md,
+config/sample_rules.json, and the CSV files in data/sample.
 First help me run the dummy data exactly as-is.
 After it works, help me adapt one rule at a time.
 Do not use real names or real schedules until the dummy solve works.
