@@ -49,4 +49,4 @@ This repo is maintained by RumbleLab, the team building NiceSchedule for anesthe
 
 If you want a hosted version that tracks requests, schedule history, review, publishing, and distribution, see:
 
-https://niceschedule.com/anesthesia-call-schedule/
+https://niceschedule.com/
