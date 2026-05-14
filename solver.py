@@ -117,6 +117,7 @@ def load_requests(path: Path) -> list[RequestRow]:
     requests = []
     for row in read_csv(path):
         raw_shift = row.get("shift_type", "").strip().upper()
+        hard_value = row.get("hard", "1").strip()
         requests.append(
             RequestRow(
                 request_id=row["request_id"].strip(),
@@ -124,7 +125,7 @@ def load_requests(path: Path) -> list[RequestRow]:
                 start_date=parse_date(row["start_date"]),
                 end_date=parse_date(row["end_date"]),
                 request_type=row["request_type"].strip().lower(),
-                hard=parse_bool(row.get("hard", "1")),
+                hard=parse_bool(hard_value or "1"),
                 shift_type=raw_shift or None,
                 note=row.get("note", "").strip(),
             )
@@ -154,6 +155,16 @@ def request_matches(request: RequestRow, day: date, shift_type: str) -> bool:
     if not (request.start_date <= day <= request.end_date):
         return False
     return request.shift_type is None or request.shift_type == shift_type
+
+
+def hard_block_label(request: RequestRow) -> str:
+    if request.shift_type:
+        return f"NO {request.shift_type}"
+    if request.request_type == "vacation":
+        return "VAC"
+    if request.request_type == "no_call":
+        return "NO CALL"
+    return "BLOCK"
 
 
 # Color pairs (background, ink) used by the HTML schedule renderer for each
@@ -224,11 +235,14 @@ def write_html_schedule(
         d = datetime.strptime(a["date"], "%Y-%m-%d").date()
         assignment_map[(d, a["clinician_id"])].append(a["shift_type"])
 
-    vacation_map: dict[tuple[date, str], bool] = {}
+    hard_block_map: dict[tuple[date, str], list[str]] = defaultdict(list)
     for r in requests:
         if r.hard:
             for d in dates_between(r.start_date, r.end_date):
-                vacation_map[(d, r.clinician_id)] = True
+                label = hard_block_label(r)
+                labels = hard_block_map[(d, r.clinician_id)]
+                if label not in labels:
+                    labels.append(label)
 
     # Shift types actually present in this schedule, in display order.
     shift_types = sorted({c.shift_type for c in coverage})
@@ -376,7 +390,7 @@ def write_html_schedule(
         for d in all_dates:
             weekend_cls = " weekend" if is_weekend(d) else ""
             shifts = assignment_map.get((d, cid), [])
-            is_vac = vacation_map.get((d, cid), False)
+            hard_blocks = hard_block_map.get((d, cid), [])
 
             if shifts:
                 # If the same person is somehow on two shifts the same day,
@@ -386,8 +400,9 @@ def write_html_schedule(
                 rows_html += (
                     f'<div class="gcell{weekend_cls} {cls}">{label}</div>\n'
                 )
-            elif is_vac:
-                rows_html += f'<div class="gcell{weekend_cls} vac">VAC</div>\n'
+            elif hard_blocks:
+                label = " / ".join(hard_blocks)
+                rows_html += f'<div class="gcell{weekend_cls} vac">{label}</div>\n'
             else:
                 rows_html += f'<div class="gcell{weekend_cls} empty">&middot;</div>\n'
 
@@ -445,7 +460,7 @@ def write_html_schedule(
         f.write(html)
 
 
-def solve(config_path: Path) -> int:
+def solve(config_path: Path, verbose: bool = False) -> int:
     # The config file tells the solver where to find input CSVs, where to write
     # output, and how strongly to weight soft preferences.
     config = load_config(config_path)
@@ -709,7 +724,8 @@ def solve(config_path: Path) -> int:
 
     status_name = "OPTIMAL" if status == cp_model.OPTIMAL else "FEASIBLE"
     print(f"Status: {status_name}")
-    print(f"Objective: {solver.ObjectiveValue():.0f}")
+    if verbose:
+        print(f"Objective: {solver.ObjectiveValue():.0f}")
     print(f"Wrote {len(rows)} assignments to {output_path}")
     print()
     print("Assignment summary:")
@@ -732,12 +748,17 @@ def main() -> int:
         default="config/sample_rules.json",
         help="Path to JSON config, relative to this folder or absolute.",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print solver diagnostics such as the objective score.",
+    )
     args = parser.parse_args()
 
     config_path = Path(args.config)
     if not config_path.is_absolute():
         config_path = Path(__file__).resolve().parent / config_path
-    return solve(config_path)
+    return solve(config_path, verbose=args.verbose)
 
 
 if __name__ == "__main__":

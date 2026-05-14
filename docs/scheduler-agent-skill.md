@@ -44,7 +44,7 @@ After the first real month is configured and solved, the user should not start o
 1. Run `scripts/start_next_month.py --year <year> --month <month>`. It moves the configured prior output into `history.csv`, regenerates `coverage.csv`, and updates the config to write a dated output file.
 2. Replace or update `requests.csv` with the new vacation and no-call requests.
 3. Adjust `clinicians.csv` only for roster, eligibility, target, or max changes.
-4. Run `scripts/run_my_schedule.py`.
+4. Run `scripts/run_my_schedule.py`. It checks the CSVs first, then solves and opens the HTML output.
 
 If they say "make next month's schedule," ask what changed since the last one. Do not rerun the dummy solve unless the install changed, the repo was freshly cloned, or you are debugging setup.
 

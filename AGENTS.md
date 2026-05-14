@@ -47,7 +47,7 @@ If the user's setup genuinely needs a change to `solver.py` (a new column the so
 
 Use the first-time loop when the user is setting up the repo or changing the solver. If the user already has a working `data/my_data/` folder and `config/my_rules.json`, skip the dummy solve unless the environment changed or something broke. For recurring schedules, use the returning-month loop below.
 
-1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `config/sample_rules.json`, `config/my_rules.template.json`, the four CSVs in `data/sample/`, `data/template/README.md`, `scripts/generate_coverage.py`, `scripts/run_my_schedule.py`, `scripts/start_next_month.py`, and `solver.py`.
+1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `config/sample_rules.json`, `config/my_rules.template.json`, the four CSVs in `data/sample/`, `data/template/README.md`, `scripts/generate_coverage.py`, `scripts/check_my_data.py`, `scripts/run_my_schedule.py`, `scripts/start_next_month.py`, and `solver.py`.
 2. Run the dummy solve as-is (`.venv/bin/python solver.py`). Confirm it prints `Status: OPTIMAL`.
 3. **Open the rendered schedule for the user.** After every successful solve, run the platform's open command on the HTML output so they can see it without hunting:
    - macOS: `open output/sample_schedule.html`

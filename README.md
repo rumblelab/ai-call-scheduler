@@ -92,7 +92,7 @@ Fill in `data/my_data/clinicians.csv`, generate or edit `coverage.csv`, add requ
 .venv/bin/python scripts/run_my_schedule.py
 ```
 
-That runs `solver.py --config config/my_rules.json` and opens the configured HTML output.
+That checks the CSVs, runs `solver.py --config config/my_rules.json`, and opens the configured HTML output.
 
 ## Use it again next month
 

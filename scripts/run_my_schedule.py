@@ -49,6 +49,16 @@ def main() -> int:
         action="store_true",
         help="Run the solve without opening the HTML output.",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print solver diagnostics such as the objective score.",
+    )
+    parser.add_argument(
+        "--skip-check",
+        action="store_true",
+        help="Skip the data preflight check before solving.",
+    )
     args = parser.parse_args()
 
     config_path = resolve_path(root, args.config)
@@ -62,10 +72,24 @@ def main() -> int:
     with config_path.open() as f:
         config = json.load(f)
 
-    result = subprocess.run(
-        [sys.executable, str(root / "solver.py"), "--config", str(config_path)],
-        check=False,
-    )
+    if not args.skip_check:
+        check_result = subprocess.run(
+            [
+                sys.executable,
+                str(root / "scripts" / "check_my_data.py"),
+                "--config",
+                str(config_path),
+            ],
+            check=False,
+        )
+        if check_result.returncode != 0:
+            return check_result.returncode
+
+    solve_cmd = [sys.executable, str(root / "solver.py"), "--config", str(config_path)]
+    if args.verbose:
+        solve_cmd.append("--verbose")
+
+    result = subprocess.run(solve_cmd, check=False)
     if result.returncode != 0:
         return result.returncode
 

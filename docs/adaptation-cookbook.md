@@ -6,7 +6,7 @@ Three worked examples of changes a real group will want, in order of difficulty.
 2. What (if anything) to change in `solver.py`.
 3. How to test it.
 
-These are designed so an agent can read this file, pattern-match, and implement the change with you. Always run the dummy solve before each change, then re-run after, and compare the output.
+These are designed so an agent can read this file, pattern-match, and implement the change with you. Start from a working configured schedule in `data/my_data/` and `config/my_rules.json`, then change one thing and run `scripts/run_my_schedule.py` to compare the output.
 
 The pattern beneath all three: **change one thing, re-run, verify.** Do not stack changes.
 
@@ -44,10 +44,10 @@ None. The solver discovers shift types from `coverage.csv` and resolves the matc
 ### How to test
 
 ```bash
-.venv/bin/python solver.py
+.venv/bin/python scripts/run_my_schedule.py
 ```
 
-You should see `Status: OPTIMAL` and roughly `28 + N` assignments where `N` is the number of new NIGHT coverage rows. Open `output/sample_schedule.csv` and confirm:
+You should see a valid schedule and roughly `previous assignment count + N` assignments where `N` is the number of new NIGHT coverage rows. Open the configured HTML output and confirm:
 
 - NIGHT shifts are filled.
 - Only clinicians with `can_night=1` got NIGHT shifts.
@@ -65,7 +65,7 @@ Sometimes you want to lock in: "Cary takes Friday June 5 OR no matter what." May
 
 ### CSV changes
 
-Create a new file `data/sample/locked_assignments.csv`:
+Create a new file `data/my_data/locked_assignments.csv`:
 
 ```csv
 date,shift_type,clinician_id
@@ -97,11 +97,15 @@ if locked_path.exists():
                     model.Add(x[(cov_id, target_clinician)] == 1)
 ```
 
-The agent prompt should be: *"Add a hard constraint that pins clinicians from `data/sample/locked_assignments.csv` to the exact (date, shift_type) row. Read it like the existing CSV readers in solver.py."*
+The agent prompt should be: *"Add a hard rule that pins clinicians from `locked_assignments.csv` in the configured input directory to the exact (date, shift_type) row. Read it like the existing CSV readers in solver.py."*
 
 ### How to test
 
-Re-run the solver and check `output/sample_schedule.csv`:
+Re-run the configured schedule and check the configured CSV/HTML output:
+
+```bash
+.venv/bin/python scripts/run_my_schedule.py
+```
 
 - The locked rows must appear exactly as specified.
 - Total counts may shift slightly (the locked person now has one assignment "spent" in a specific slot).
@@ -155,7 +159,7 @@ objective_terms.append(50 * both_weekend)  # weight = 50, tune as needed
 
 ### How to test
 
-Re-run, open `output/sample_schedule.csv`, and check: no clinician should have an assignment on both June 6 (Sat) and June 7 (Sun), or June 13 (Sat) and June 14 (Sun).
+Re-run the configured schedule and check the HTML/CSV output: no clinician should have an assignment on both Saturday and Sunday of the same weekend.
 
 If you can't find a feasible schedule, your group may not have enough weekend-eligible coverage to support the rule. Either soften it, raise `max_weekend_shifts`, or accept that some pairings have to happen during heavy months.
 
@@ -170,6 +174,6 @@ The pattern is the same for almost any rule:
 - **Partner vs non-partner:** add an `is_partner` column to `clinicians.csv`, then add an objective that pushes leftover call onto partners after non-partners hit their `target_shifts`.
 - **Site-specific eligibility:** already supported. Just use distinct shift types (`NORTH`, `SOUTH`, `EAST`) and matching `can_*` columns.
 
-For each one, the agent prompt is: *"Read solver.py, then add `<rule>`. Add it as a hard constraint by default. Tell me what to change in the CSVs and how to test it. Run the dummy solve after."*
+For each one, the agent prompt is: *"Read solver.py, then add `<rule>`. Add it as a hard rule by default. Tell me what to change in the CSVs and how to test it. Run the configured schedule after."*
 
-Add one rule at a time. Always re-run the dummy solve. Compare outputs before and after.
+Add one rule at a time. Always re-run the configured schedule. Compare outputs before and after.
