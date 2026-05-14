@@ -75,21 +75,40 @@ That's the whole handoff. `AGENTS.md` tells the agent what to read next, how to 
 
 If you're working in a web chat instead (ChatGPT.com, Claude.ai), the [walkthrough](https://niceschedule.com/how-to-make-a-schedule-with-ai/) has a longer paste-in prompt that points the agent at this repo over the network.
 
+## Set up your own schedule
+
+After the sample works, create local working files from the templates:
+
+```bash
+cp -R data/template data/my_data
+cp config/my_rules.template.json config/my_rules.json
+```
+
+Those paths are ignored by Git so local roster, request, and schedule data do not get committed by accident.
+
+Fill in `data/my_data/clinicians.csv`, generate or edit `coverage.csv`, add requests, then run:
+
+```bash
+.venv/bin/python scripts/run_my_schedule.py
+```
+
+That runs `solver.py --config config/my_rules.json` and opens the configured HTML output.
+
 ## Use it again next month
 
 After the sample works and your real `data/my_data/` plus `config/my_rules.json` are set up, you do not need to run the dummy solve every month.
 
 For the next schedule:
 
-1. Add the finalized prior schedule to `data/my_data/history.csv` so recent workload counts.
-2. Generate or update `data/my_data/coverage.csv` for the new month.
-3. Replace `data/my_data/requests.csv` with the new vacation and no-call requests.
-4. Update `data/my_data/clinicians.csv` only for roster, eligibility, target, or max changes.
-5. Run:
+1. Start the month:
 
 ```bash
-.venv/bin/python solver.py --config config/my_rules.json
+.venv/bin/python scripts/start_next_month.py --year 2026 --month 8
 ```
+
+2. Update `data/my_data/requests.csv` with the new vacation and no-call requests.
+3. Update `data/my_data/clinicians.csv` only for roster, eligibility, target, or max changes.
+4. Run `.venv/bin/python scripts/run_my_schedule.py`.
 
 Then open the configured HTML output and review the schedule.
 

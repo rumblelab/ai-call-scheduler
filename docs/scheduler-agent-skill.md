@@ -41,11 +41,10 @@ Fill in defaults for anything they don't volunteer. Many users will give you a o
 
 After the first real month is configured and solved, the user should not start over with the sample data. Treat the next month as a data refresh:
 
-1. Move the finalized prior schedule into `history.csv` so the next solve can account for recent workload.
-2. Generate or update `coverage.csv` for the new month.
-3. Replace or update `requests.csv` with the new vacation and no-call requests.
-4. Adjust `clinicians.csv` only for roster, eligibility, target, or max changes.
-5. Run the existing config with `solver.py --config config/my_rules.json`.
+1. Run `scripts/start_next_month.py --year <year> --month <month>`. It moves the configured prior output into `history.csv`, regenerates `coverage.csv`, and updates the config to write a dated output file.
+2. Replace or update `requests.csv` with the new vacation and no-call requests.
+3. Adjust `clinicians.csv` only for roster, eligibility, target, or max changes.
+4. Run `scripts/run_my_schedule.py`.
 
 If they say "make next month's schedule," ask what changed since the last one. Do not rerun the dummy solve unless the install changed, the repo was freshly cloned, or you are debugging setup.
 
