@@ -28,42 +28,18 @@ If you want a simple hosted web version of this free tool, email me and I will t
 > ```text
 > I am trying to use the free NiceSchedule call schedule solver tutorial.
 >
-> Public walkthrough:
-> https://niceschedule.com/how-to-make-a-schedule-with-ai/
->
 > GitHub repo:
 > https://github.com/rumblelab/ai-call-scheduler
 >
-> My goal:
-> First, help me run the dummy data exactly as-is.
-> Second, help me understand the CSV files.
-> Third, help me adapt one rule at a time.
+> Fetch and read AGENTS.md from the repo first. It tells you which
+> other files to read, how to talk to me, when to open the rendered
+> schedule, and the safety rules. Follow it.
 >
-> Please read these files before changing anything:
-> - README.md
-> - docs/scheduler-agent-skill.md
-> - docs/csv-schema.md
-> - docs/adaptation-cookbook.md
-> - docs/troubleshooting.md
-> - docs/agent-privacy.md
-> - config/sample_rules.json
-> - data/sample/clinicians.csv
-> - data/sample/coverage.csv
-> - data/sample/requests.csv
-> - data/sample/history.csv
-> - scripts/generate_coverage.py
-> - solver.py
+> Then help me run the dummy solve exactly as-is. Use the synthetic
+> data in data/sample/. Do not ask me for real names or real vacation
+> data yet.
 >
-> Safety rules:
-> - Do not ask me for real names yet.
-> - Do not ask me for real vacation data yet.
-> - Do not use real schedules until the dummy solve works.
-> - If you need example data, invent fake data.
-> - Add one rule at a time.
-> - After each change, tell me exactly how to test it.
->
-> Start by explaining what this solver currently does in plain English.
-> Then help me run the sample command.
+> Start by explaining what the solver currently does in plain English.
 > ```
 
 ## The important distinction
@@ -296,25 +272,19 @@ Copy this whole block into Codex, Claude Code, ChatGPT, or another coding assist
 ```text
 I am adapting the free NiceSchedule call schedule solver tutorial.
 
-Public walkthrough:
-https://niceschedule.com/how-to-make-a-schedule-with-ai/
-
 GitHub repo:
 https://github.com/rumblelab/ai-call-scheduler
 
-Read README.md, docs/scheduler-agent-skill.md, docs/csv-schema.md,
-docs/adaptation-cookbook.md, docs/troubleshooting.md, docs/agent-privacy.md,
-config/sample_rules.json, the CSV files in data/sample,
-scripts/generate_coverage.py, and solver.py.
+Fetch and read AGENTS.md from the repo first. It tells you what else
+to read, how to talk to me, the run/open/report loop, and the safety
+rules. Follow it.
 
-First explain the current rule set back to me in plain English.
-Then help me add this one rule:
+Then explain the current rule set back to me in plain English and
+help me add this one rule:
 
 [write one rule here]
 
-Do not ask me for real names or real schedules. Use synthetic data.
-Only change one rule at a time.
-After changing it, tell me how to test whether it worked.
+One rule at a time. After changing it, tell me how to test it.
 ```
 
 Good first expansion rules:

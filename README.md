@@ -61,7 +61,13 @@ This is a teaching example, not a production scheduler. Real groups also need ho
 
 ## Hand it to your agent
 
-Open the walkthrough above, scroll to "If you have Claude Code or Codex," and copy the prompt. It points your agent at the right files in the right order so it can run the dummy solve and start adapting it without flailing.
+In a cloned repo with Claude Code, Codex, Cursor, or any agent that auto-loads `AGENTS.md`, just say:
+
+> Read AGENTS.md and help me run the dummy solve, then adapt one rule at a time.
+
+That's the whole handoff. `AGENTS.md` tells the agent what to read next, how to talk to you (plain English, no solver jargon), when to open the printable schedule, and how to build a coverage file for your real shifts.
+
+If you're working in a web chat instead (ChatGPT.com, Claude.ai), the [walkthrough](https://niceschedule.com/how-to-make-a-schedule-with-ai/) has a longer paste-in prompt that points the agent at this repo over the network.
 
 ## Privacy
 
