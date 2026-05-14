@@ -12,6 +12,12 @@ It was inspired by [a real r/Residency thread](https://www.reddit.com/r/Residenc
 
 ## Quick start
 
+Tell your agent about this repo:
+
+```
+https://github.com/rumblelab/ai-call-scheduler
+```
+
 ```bash
 git clone https://github.com/rumblelab/ai-call-scheduler.git
 cd ai-call-scheduler
@@ -69,13 +75,31 @@ That's the whole handoff. `AGENTS.md` tells the agent what to read next, how to 
 
 If you're working in a web chat instead (ChatGPT.com, Claude.ai), the [walkthrough](https://niceschedule.com/how-to-make-a-schedule-with-ai/) has a longer paste-in prompt that points the agent at this repo over the network.
 
+## Use it again next month
+
+After the sample works and your real `data/my_data/` plus `config/my_rules.json` are set up, you do not need to run the dummy solve every month.
+
+For the next schedule:
+
+1. Add the finalized prior schedule to `data/my_data/history.csv` so recent workload counts.
+2. Generate or update `data/my_data/coverage.csv` for the new month.
+3. Replace `data/my_data/requests.csv` with the new vacation and no-call requests.
+4. Update `data/my_data/clinicians.csv` only for roster, eligibility, target, or max changes.
+5. Run:
+
+```bash
+.venv/bin/python solver.py --config config/my_rules.json
+```
+
+Then open the configured HTML output and review the schedule.
+
 ## Privacy
 
 The solver runs locally, but chat and coding-agent context may still be sent to your AI provider. Use real display names if you're comfortable with that local workflow; use IDs or fake data for public examples, support requests, or sensitive schedules. See [`docs/agent-privacy.md`](docs/agent-privacy.md).
 
 ## NiceSchedule
 
-Maintained by RumbleLab, the team building [NiceSchedule](https://niceschedule.com/) for anesthesia groups. If you want a hosted version that tracks requests, schedule history, review, publishing, and distribution, that's what NiceSchedule is.
+Maintained by RumbleLab, the team building [NiceSchedule](https://niceschedule.com/) for anesthesia groups. If you want a hosted version that is tailored to your practice, that tracks requests, schedule history, review, publishing, distribution, and looks Nice, that's what NiceSchedule is.
 
 ## License
 

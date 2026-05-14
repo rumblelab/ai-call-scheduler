@@ -45,6 +45,8 @@ If the user's setup genuinely needs a change to `solver.py` (a new column the so
 
 ## Operating loop
 
+Use the first-time loop when the user is setting up the repo or changing the solver. If the user already has a working `data/my_data/` folder and `config/my_rules.json`, skip the dummy solve unless the environment changed or something broke. For recurring schedules, use the returning-month loop below.
+
 1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `config/sample_rules.json`, the four CSVs in `data/sample/`, `scripts/generate_coverage.py`, and `solver.py`.
 2. Run the dummy solve as-is (`.venv/bin/python solver.py`). Confirm it prints `Status: OPTIMAL`.
 3. **Open the rendered schedule for the user.** After every successful solve, run the platform's open command on the HTML output so they can see it without hunting:
@@ -71,6 +73,18 @@ If the user's setup genuinely needs a change to `solver.py` (a new column the so
 
    If a new shift type comes up (e.g. a second location, a backup call), also add the matching `can_<shift>` column to `clinicians.csv` or the solver will refuse to run.
 6. **The user drives the next change.** After the report, ask one open question — usually some version of *"anything you'd want to adjust?"* — and wait. Do not propose feature catalogs. Do not start adding fields, columns, or constraints the user did not ask for. When they do ask for something, change one thing, re-run, re-open the HTML, and report back.
+
+## Returning next month
+
+Once the first real schedule works, don't restart from the tutorial every month. Keep using the user's configured files.
+
+1. Carry the finalized prior schedule into `data/my_data/history.csv` so recent burden is counted. Use the prior output rows (`date`, `clinician_id`, `shift_type`) and add `status=final`.
+2. Update `data/my_data/coverage.csv` for the new month, usually by running `scripts/generate_coverage.py` with the same `SHIFT_PATTERN`.
+3. Update `data/my_data/requests.csv` with the new vacation and no-call requests.
+4. Update `data/my_data/clinicians.csv` only for roster, eligibility, target, or max changes.
+5. Run the configured solve, not the sample solve:
+   `.venv/bin/python solver.py --config config/my_rules.json`
+6. Open the configured HTML output and give the usual short report.
 
 ## Safety
 

@@ -37,6 +37,18 @@ Over the course of the conversation you'll eventually need to understand these t
 
 Fill in defaults for anything they don't volunteer. Many users will give you a one-line brief that already covers the only things they care about — don't drag them through the rest.
 
+## Returning-month pattern
+
+After the first real month is configured and solved, the user should not start over with the sample data. Treat the next month as a data refresh:
+
+1. Move the finalized prior schedule into `history.csv` so the next solve can account for recent workload.
+2. Generate or update `coverage.csv` for the new month.
+3. Replace or update `requests.csv` with the new vacation and no-call requests.
+4. Adjust `clinicians.csv` only for roster, eligibility, target, or max changes.
+5. Run the existing config with `solver.py --config config/my_rules.json`.
+
+If they say "make next month's schedule," ask what changed since the last one. Do not rerun the dummy solve unless the install changed, the repo was freshly cloned, or you are debugging setup.
+
 ## Rule translation examples
 
 Human rule:
