@@ -65,8 +65,9 @@ Solver translation:
 
 ## Guardrails
 
-- Start with dummy data. Do not use real names or real schedules until the sample solver runs.
-- Do not paste private physician schedules, vacation history, employment data, or patient information into public tools.
+- Start with the dummy solve so you know the local setup works before adapting real schedule data.
+- Keep privacy guidance to a brief disclosure: the solver runs locally, but chat and coding-agent context may still be sent to the AI provider.
+- Real display names and vacation-by-name are fine if the user is comfortable with that workflow. Use IDs or fake names for public examples or sensitive setups.
 - Add one rule at a time. Run the solver after each change. Open the HTML after each run.
 - If the model becomes infeasible, remove the newest rule first and inspect which coverage rows are hardest to fill. Tell the user in plain English ("the solver couldn't find a valid schedule — the OB shifts on the 4th and 5th had nobody eligible left"), not in solver-speak.
 - Keep hard rules and soft preferences separate.
