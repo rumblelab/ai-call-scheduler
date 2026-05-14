@@ -56,10 +56,10 @@ If the user's setup genuinely needs a change to `solver.py` (a new column the so
 4. Explain in plain English what the solver did and what's in the HTML.
 5. **Get them talking about their actual schedule.** Open with one open question, in your own words. Something like: *"Tell me about the schedule you're trying to build — how many people, what shifts, what time period?"* Then have a conversation. Do NOT present a structured multi-choice question or a numbered checklist of follow-ups.
 
-   You eventually need enough to fill in `clinicians.csv`, `coverage.csv`, `requests.csv`, and `history.csv` — but you don't need to extract it all up front. Take what they give you, fill in sensible defaults (synthetic names like `doc_01`, `doc_02` are fine until they want their real roster), run a solve, show them the HTML, and iterate from there.
+   You eventually need enough to fill in `clinicians.csv`, `coverage.csv`, `requests.csv`, and `history.csv` — but you don't need to extract it all up front. Take what they give you, fill in sensible defaults, run a solve, show them the HTML, and iterate from there. Synthetic IDs like `doc_01` are fine for early testing, and real display names are also fine if the user is comfortable with their local workflow.
 
    Things you'll need to know at some point, asked naturally as they come up:
-   - roster size (and whether they want to use IDs or real names yet)
+   - roster size (and whether they want display names, short IDs, or both)
    - shift types and which days they're needed (every day? weekdays only? weekends only?)
    - whether everyone is eligible for every shift, or if some people only do certain shifts / certain locations
    - the time window (one month, three months, a year)
@@ -74,6 +74,7 @@ If the user's setup genuinely needs a change to `solver.py` (a new column the so
 
 ## Safety
 
-- Synthetic data until the dummy solve works and the user has seen the HTML.
-- Do not paste real physician names, vacation history, schedules, or patient information into public tools. See `docs/agent-privacy.md`.
+- Start with the sample solve so the mechanics are proven before real schedule data enters the workflow.
+- When real schedule data comes up, give a brief disclosure: the solver runs locally, but chat and coding-agent context may still be sent to the AI provider. See `docs/agent-privacy.md`.
+- Real display names and vacation-by-name are fine if the user is comfortable with that workflow. Offer IDs as an option for public examples or more sensitive setups, not as a requirement.
 - If the solver can't find a schedule, remove the most recent rule change first and tell the user which coverage rows were hardest to fill — don't lecture them about feasibility theory.

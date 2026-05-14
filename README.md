@@ -71,7 +71,7 @@ If you're working in a web chat instead (ChatGPT.com, Claude.ai), the [walkthrou
 
 ## Privacy
 
-Start with synthetic data. Do not paste real physician names, vacation requests, schedules, patient information, employment data, hospital identifiers, or internal group rules into public AI tools or public GitHub issues. See [`docs/agent-privacy.md`](docs/agent-privacy.md).
+The solver runs locally, but chat and coding-agent context may still be sent to your AI provider. Use real display names if you're comfortable with that local workflow; use IDs or fake data for public examples, support requests, or sensitive schedules. See [`docs/agent-privacy.md`](docs/agent-privacy.md).
 
 ## NiceSchedule
 
