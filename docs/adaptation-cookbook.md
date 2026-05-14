@@ -142,6 +142,81 @@ If you can't find a feasible schedule, your group may not have enough weekend-el
 
 ---
 
+## 4. Spread weekday patterns across months
+
+"Cary always gets Mondays" is a complaint that takes 2–3 months to surface. The dummy solver balances *total* burden against `history.csv` via the `history_balance` term, but it doesn't penalize repeating the same `(clinician, weekday)` slot. If Cary's eligibility, target, and other constraints all line up to put her on the first Monday, she may keep landing on the first Monday every month.
+
+This rule penalizes any weekday a clinician has covered a lot in history, so patterns rotate naturally over time.
+
+### CSV changes
+
+None. This uses the existing `history.csv` rows. The more months of history you've accumulated, the better it works — it's a no-op on a first-month solve.
+
+### Code changes
+
+In `solver.py`, after the existing `history_balance` block (search for `# SOFT PREFERENCE 4`), add this block:
+
+```python
+# SOFT PREFERENCE: spread weekday slots across months. Penalize giving a
+# clinician a weekday they've already covered a lot in history.csv.
+# Pulls patterns like "Cary always gets Mondays" apart over time.
+history_weekday = Counter()
+history_path = input_dir / "history.csv"
+if history_path.exists():
+    for row in read_csv(history_path):
+        cid = resolve_clinician_key(row["clinician_id"], clinicians)
+        if cid not in clinicians:
+            continue
+        day = parse_date(row["date"])
+        history_weekday[(cid, day.weekday())] += 1
+
+weekday_repeat_weight = parse_int(str(weights.get("weekday_repeat", 20)))
+for clinician_id in clinician_ids:
+    for weekday in range(7):
+        prior = history_weekday[(clinician_id, weekday)]
+        if prior == 0:
+            continue
+        same_weekday_now = sum(
+            x[(cov_id, clinician_id)]
+            for cov_id, cov in enumerate(coverage)
+            if cov.date.weekday() == weekday
+        )
+        objective_terms.append(weekday_repeat_weight * prior * same_weekday_now)
+```
+
+`Counter`, `read_csv`, `parse_date`, and `resolve_clinician_key` are already defined at the top of `solver.py` — you don't need to re-import or redefine anything.
+
+What this does: for each clinician, count how many times each weekday (Mon–Sun) shows up in history. If Cary covered 3 Mondays in May, every Monday assignment in June pays a penalty of `3 × 20 = 60`. Another Monday hurts more than a Thursday she's never had. Over a few months, the term naturally rotates patterns.
+
+Then add a default weight in `config/my_rules.json` (and `config/sample_rules.json` if you want it in the demo):
+
+```json
+"weights": {
+  ...
+  "weekday_repeat": 20
+}
+```
+
+The agent prompt: *"Add a soft preference that penalizes giving a clinician a weekday they've already covered in `history.csv`. Build a `Counter` over `(clinician_id, weekday)` from history; for each `(clinician, weekday)` pair, add an objective term equal to `prior_count × weight × current_weekday_assignments`. Default weight 20. No CSV schema change."*
+
+### Tuning the weight
+
+- **Patterns still stick after 2–3 months** → raise `weekday_repeat` to 40 or 60.
+- **People get bumped off shifts they're genuinely best for** → drop to 10 or 5.
+- The penalty compounds with history depth: a doc with 10 historical Mondays takes a much bigger hit for one more Monday than someone with 2. As history fills in over a year, you may want to lower the weight so the term doesn't dominate.
+
+### How to test
+
+Run the configured schedule for a fresh month after at least one month of history exists. Compare against the prior schedule — clinicians should be drifting away from their old weekday slots, not repeating them. If you don't have history yet, `history_weekday` is empty and the term is a no-op, so this is safe to ship even on a first-month solve.
+
+### Variants
+
+- **Penalize same shift_type on the same weekday** (more granular — useful if Monday OR and Monday OB count as different "slots"): change the counter key to `(clinician_id, shift_type, weekday)`.
+- **Penalize "first weekend of the month" repeats**: group the dates into "first weekend / second weekend / ..." buckets instead of raw weekday.
+- **Penalize same calendar day repeats** (someone always covering the 1st of the month): key on `(clinician_id, day_of_month)`.
+
+---
+
 ## What to add next
 
 The pattern is the same for almost any rule:
