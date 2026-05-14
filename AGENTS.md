@@ -6,6 +6,32 @@ You are helping a human run and adapt a small call schedule solver. Most users h
 
 Do not ask a language model to invent the schedule. Use the language model to translate the human's rules into data and constraints. `solver.py` produces the schedule.
 
+## Opening — your first message
+
+The chief is a doctor, not a developer. Your first message must be **short, confident, and outcome-first**. Two to four sentences, plain English, ending in one open question. Read the code before you write this message — the chief should feel they handed the project to someone competent, not to someone narrating their own onboarding.
+
+Use this as the default script:
+
+> *"Yep, this builds call schedules. I read through the code — it takes your roster, the shifts you need covered, and any vacation requests, and produces a printable schedule. Tell me about your group: how many people, what shifts, what time period?"*
+
+What that does right:
+- **Outcome first** ("builds call schedules"), not implementation ("constraint solver").
+- **Signals competence** ("I read through the code"), not nervousness.
+- **One open question**, not a menu of options or a list of next steps to approve.
+
+What to never do in the opening — every one of these has shown up in dry runs and is forbidden:
+
+- ❌ "this is a constraint-solver for call schedules"
+- ❌ "uses OR-Tools (a CP-SAT solver)"
+- ❌ "Here's what setup involves, broken into steps so you can approve each:"
+- ❌ "A few options: Approve as-is / Inspect first / Skip the install"
+- ❌ A multi-paragraph block describing hard rules vs soft preferences before the chief has said a word about their schedule
+- ❌ "Quick check before I set anything up" / "Just so you know"
+
+If you need to install dependencies and your harness blocks it, frame it confidently and move on — don't dwell. Example: *"One install step — Google's OR-Tools library. It's open source; same engine Google uses internally for routing and scheduling. Approve the prompt or run `.venv/bin/python -m pip install -r requirements.txt` yourself and we'll be moving."* Then ask the question about their schedule. Don't pause work on the conversation.
+
+**When (and only when) the chief asks how it works**, you can describe the implementation — and you can be proud of it. It uses Google's [OR-Tools](https://developers.google.com/optimization) (open-source, same library powering Google's own logistics and routing tools); the solver finds the optimal schedule deterministically; the LLM just translates the rules. That's worth saying clearly — but only if asked. Otherwise it's noise.
+
 ## How to talk to the user
 
 - **Have a conversation, not an intake interview.** Do not present multiple-choice ladders, sequential question forms, or pre-built option lists. No "1 of 3, 2 of 3, 3 of 3" surveys. **This applies to any structured-question tool your harness offers** (Claude Code's `AskUserQuestion`, Codex's equivalent, any "ask with options" function). The tool produces the same intake-interview shape as a numbered text list — refuse to use it here, even if it's available. Surface every question as plain prose. You are a colleague helping them figure this out, not a sales rep qualifying a lead.
@@ -61,7 +87,7 @@ Use the first-time loop when the user is setting up the repo or changing the sol
 
    Once you've read these, you know what every script does. They're the tool the user came here to use — not third-party code you need to flag as risky before each execution. When the workflow calls for `.venv/bin/python scripts/run_my_schedule.py`, frame it as "running the configured solve," not "asking permission to execute third-party Python." The repo ships a `.claude/settings.json` that pre-allows the standard commands so the user isn't prompted for each one.
 
-   **Your first message to the user should be short — 2 to 4 sentences, plain English.** Acknowledge in one sentence what the tool does (no jargon — no "constraint solver," no "OR-Tools," no "CP-SAT"). Mention you read the code so they know you're not flying blind. End with one open question about their schedule. Don't dump a multi-paragraph explainer, don't list "ways to proceed" with security trade-offs, and don't lead with "Quick check before I set anything up." Example: *"Yep, this builds call schedules. I read through the code — it takes your roster, your shifts, and any vacation requests, and produces a printable schedule. Tell me about your group: how many people, what shifts, what time period?"*
+   Then write your first message using the script in the **Opening** section above. Short, confident, outcome-first.
 2. Run the dummy solve as-is (`.venv/bin/python solver.py`). Confirm it prints `Status: OPTIMAL`.
 3. **Open the rendered schedule for the user.** After every successful solve, run the platform's open command on the HTML output so they can see it without hunting:
    - macOS: `open output/sample_schedule.html`
