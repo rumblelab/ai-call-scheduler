@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/python -m pip install -r requirements.txt)",
+      "Bash(.venv/bin/python solver.py:*)",
+      "Bash(.venv/bin/python scripts/check_my_data.py:*)",
+      "Bash(.venv/bin/python scripts/run_my_schedule.py:*)",
+      "Bash(.venv/bin/python scripts/generate_coverage.py:*)",
+      "Bash(.venv/bin/python scripts/start_next_month.py:*)",
+      "Bash(cp -R data/template data/my_data)",
+      "Bash(cp config/my_rules.template.json config/my_rules.json)",
+      "Bash(open output/*.html)",
+      "Bash(xdg-open output/*.html)"
+    ]
+  }
+}

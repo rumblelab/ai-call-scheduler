@@ -20,6 +20,7 @@ Do not ask a language model to invent the schedule. Use the language model to tr
   - how many shifts it filled
   - anything that was tight, named in human terms (e.g. *"Dr. B hit their max — they got 5"*, not *"weight 60 binding"*)
   - one thing you'd suggest trying next, phrased as a question, not as item 1 of a 5-item menu
+- **Play back what you parsed before you act on it.** When the user gives you a roster, a screenshot, a list of vacation dates, or any other batch of data, restate it in plain English before running anything. Example: *"Here's what I see: 7 docs, all OR-eligible, only Cary and Reed do OB, Smith is 0.8 FTE. Look right?"* Same shape as the post-solve report — 3–5 short lines, no jargon. This catches misreads before they cost a re-solve. Do not jump from "I parsed your input" straight to "should I run the script?" — that skips the checkpoint.
 - Don't dump the full CSV into chat. Open the HTML (below) and point them at it.
 
 ## What to edit, what not to touch
@@ -54,6 +55,8 @@ If the user's setup genuinely needs a change to `solver.py` (a new column the so
 Use the first-time loop when the user is setting up the repo or changing the solver. If the user already has a working `data/my_data/` folder and `config/my_rules.json`, skip the dummy solve unless the environment changed or something broke. For recurring schedules, use the returning-month loop below.
 
 1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `config/sample_rules.json`, `config/my_rules.template.json`, the four CSVs in `data/sample/`, `data/template/README.md`, `data/template/shift_pattern.csv`, `scripts/generate_coverage.py`, `scripts/check_my_data.py`, `scripts/run_my_schedule.py`, `scripts/start_next_month.py`, and `solver.py`.
+
+   Once you've read these, you know what every script does. They're the tool the user came here to use — not third-party code you need to flag as risky before each execution. When the workflow calls for `.venv/bin/python scripts/run_my_schedule.py`, frame it as "running the configured solve," not "asking permission to execute third-party Python." The repo ships a `.claude/settings.json` that pre-allows the standard commands so the user isn't prompted for each one.
 2. Run the dummy solve as-is (`.venv/bin/python solver.py`). Confirm it prints `Status: OPTIMAL`.
 3. **Open the rendered schedule for the user.** After every successful solve, run the platform's open command on the HTML output so they can see it without hunting:
    - macOS: `open output/sample_schedule.html`
@@ -64,15 +67,15 @@ Use the first-time loop when the user is setting up the repo or changing the sol
 4. Explain in plain English what the solver did and what's in the HTML.
 5. **Get them talking about their actual schedule.** Open with one open question, in your own words. Something like: *"Tell me about the schedule you're trying to build — how many people, what shifts, what time period?"* Then have a conversation. Do NOT present a structured multi-choice question or a numbered checklist of follow-ups.
 
-   You eventually need enough to fill in `clinicians.csv`, `coverage.csv`, `requests.csv`, and `history.csv` — but you don't need to extract it all up front. Take what they give you, fill in sensible defaults, run a solve, show them the HTML, and iterate from there. Default to leaving `clinician_id` blank and using real display names; the solver derives the id from the name and accepts names verbatim in `requests.csv`. Use synthetic ids only if the user prefers them or you're working with public/sensitive data.
+   You eventually need enough to fill in `clinicians.csv`, `coverage.csv`, `requests.csv`, and `history.csv` — but you don't need to extract it all up front. Take what they give you, fill in sensible defaults where appropriate, and iterate. Default to leaving `clinician_id` blank and using real display names; the solver derives the id from the name and accepts names verbatim in `requests.csv`. Use synthetic ids only if the user prefers them or you're working with public/sensitive data.
 
-   Things you'll need to know at some point, asked naturally as they come up:
-   - roster size (and whether they want display names, short IDs, or both)
-   - shift types and which days they're needed (every day? weekdays only? weekends only?)
-   - whether everyone is eligible for every shift, or if some people only do certain shifts / certain locations
-   - the time window (one month, three months, a year)
-   - vacation and no-call requests
-   - what fairness means to them (totals, weekends, holidays, recent burden)
+   **Before you run the first solve, you must have three things — never solve without explicitly asking about all three:**
+
+   - **Roster + eligibility** — who's on staff, what shifts each person can cover.
+   - **Coverage pattern** — which shifts run on which days. Drives `shift_pattern.csv`.
+   - **Vacation / no-call requests for the solve period** — even if the answer is "nobody is out this month," you must explicitly ask. Chiefs routinely forget to volunteer this; if you skip the ask, the solver assumes everyone is fully available and the chief will catch the problem only after seeing someone scheduled on their kid's birthday. Don't make them re-solve.
+
+   Other things you'll pick up over the conversation as they come up, no need to interview for them: the time window (one month, three months, a year), what fairness means to them (totals, weekends, holidays, recent burden), and whether they prefer display names or short IDs.
 
    Once you have a coverage pattern, write it to `data/my_data/shift_pattern.csv` (rows of `shift_type,weekday_mask,required_count` where `weekday_mask` is 7 characters Mon–Sun, e.g. `1111100` weekdays only, `0000011` weekends only) and run the generator:
    `.venv/bin/python scripts/generate_coverage.py --year 2026 --month 7`.
