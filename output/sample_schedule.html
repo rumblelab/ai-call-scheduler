@@ -1,178 +1,228 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Call Schedule | NiceSchedule</title>
-  <style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Schedule | NiceSchedule</title>
+    <style>
     :root {
-      --bg: #fbfaf7;
-      --panel: #ffffff;
-      --panel-soft: #f4f1e8;
-      --ink: #101418;
-      --muted: #66717a;
-      --rule: #e2dccf;
-      --rule-2: #eee8dc;
-      --accent: #153f63;
-      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --bg: #ffffff;
+      --ink: #000000;
+      --muted: #666666;
+      --rule: #dddddd;
+      --rule-strong: #000000;
+      --weekend: #f5f5f5;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
     body {
       margin: 0;
-      padding: 40px 20px;
+      padding: 40px;
       background: var(--bg);
       color: var(--ink);
       font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.2;
     }
-    .container { max-width: 1200px; margin: 0 auto; }
-    header { margin-bottom: 30px; }
-    h1 { font-size: 24px; margin: 0 0 8px; }
-    .subtitle { color: var(--muted); font-size: 14px; }
+    *, *::before, *::after { box-sizing: border-box; }
+    .container { max-width: 1600px; margin: 0 auto; }
+    header {
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 12px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    h1 { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+    .subtitle { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; }
 
-    .grid-frame {
-      border: 1px solid var(--rule);
-      border-radius: 10px;
-      background: var(--panel);
-      overflow: hidden;
-      box-shadow: 0 16px 30px -22px rgba(15, 53, 86, 0.18);
-    }
+    .grid-frame { border: 1px solid var(--rule-strong); background: #fff; }
     .grid-frame-scroll { overflow-x: auto; }
     .grid-schedule {
       display: grid;
-      min-width: 800px;
-      font-size: 12px;
+      grid-template-columns: 140px repeat(var(--n-days), minmax(48px, 1fr)) 60px 60px;
+      width: max-content;
+      min-width: 100%;
     }
     .gh {
-      padding: 10px 6px;
-      border-bottom: 1px solid var(--rule);
-      border-right: 1px solid var(--rule-2);
-      background: var(--panel-soft);
-      color: var(--muted);
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--rule-strong);
+      border-right: 1px solid var(--rule);
+      background: #fcfcfc;
       font-size: 10px;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: uppercase;
       text-align: center;
-      white-space: nowrap;
     }
-    .gh.corner { text-align: left; padding-left: 14px; }
-    .gh.weekend { background: #efe7d2; }
+    .gh.corner { text-align: left; padding-left: 12px; }
+    .gh.weekend { background: var(--weekend); }
 
     .gname {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--rule-2);
-      border-right: 1px solid var(--rule);
-      background: #faf7ee;
-      color: var(--ink);
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--rule);
+      border-right: 2px solid var(--rule-strong);
+      background: #fff;
       font-weight: 700;
       position: sticky;
       left: 0;
       z-index: 2;
     }
     .gcell {
-      padding: 12px 4px;
-      border-bottom: 1px solid var(--rule-2);
-      border-right: 1px solid var(--rule-2);
-      text-align: center;
-      color: var(--muted);
-      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 4px;
+      border-bottom: 1px solid var(--rule);
+      border-right: 1px solid var(--rule);
     }
-    .gcell.weekend { background: #fbf7ea; }
-    .gcell.empty { color: #c8cfd6; }
+    .gcell.weekend { background: #fafafa; }
+    .gcell.empty { color: #eee; }
 
-    .gh.totals { background: var(--panel-soft); }
     .gtotal {
-      padding: 12px 8px;
-      border-bottom: 1px solid var(--rule-2);
-      border-left: 1px solid var(--rule);
-      background: #faf7ee;
-      color: var(--ink);
-      font-weight: 700;
-      text-align: center;
-      font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--rule);
+      border-left: 2px solid var(--rule-strong);
+      background: #fff;
+      font-weight: 800;
       position: sticky;
       z-index: 2;
     }
-    .gtotal.col-total { right: 80px; }
-    .gtotal.col-weekend { right: 0; }
-    .gtotal.over { color: #963c2f; }
-    .gtotal.under { color: #8a5a12; }
-    .gtotal .target { color: var(--muted); font-weight: 600; }
+    .gtotal.col-total { right: 60px; }
+    .gtotal.col-weekend { right: 0; border-left: 1px solid var(--rule); }
+    .gtotal .target { color: var(--muted); font-size: 9px; font-weight: 400; margin-left: 2px; }
 
-    .schedule-notes {
-      margin: 20px 0 0;
-      padding: 16px 20px;
-      background: var(--panel-soft);
-      border: 1px solid var(--rule);
-      border-radius: 8px;
+    .grid-legend { display: flex; flex-wrap: wrap; gap: 20px; margin: 24px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+    .lg { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 12px; height: 12px; border: 1px solid #ccc; }
+
+    .schedule-notes { margin-top: 24px; padding: 16px; border: 1px solid var(--rule); font-size: 12px; }
+    .schedule-notes h2 { font-size: 11px; font-weight: 900; text-transform: uppercase; margin: 0 0 8px; }
+
+    /* Branding band lives INSIDE .grid-frame so a chief who tries to crop
+       it off the printout has to slice into the schedule box itself. */
+    .grid-watermark {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border-top: 1px solid var(--rule);
+      background: #fcfcfc;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
-    .schedule-notes h2 {
+    .grid-watermark a {
+      color: var(--ink);
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .print-actions { margin-bottom: 24px; display: flex; gap: 12px; }
+    .btn-subtle {
+      padding: 4px 10px;
       font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--muted);
-      margin: 0 0 8px;
+      letter-spacing: 0.05em;
+      background: #eee;
+      color: #333;
+      border: 1px solid #ddd;
+      cursor: pointer;
     }
-    .schedule-notes ul {
-      margin: 0;
-      padding-left: 20px;
-      font-size: 13px;
-      color: var(--ink);
-    }
-    .schedule-notes li { margin-bottom: 4px; }
-    .schedule-notes li em { color: var(--muted); font-style: normal; }
-    .gcell.s-ob { background: #f4e8d3; color: #6e4a16; font-weight: 700; }
-    .swatch.s-ob { background: #f4e8d3; border-color: #6e4a1633; }
-    .gcell.s-or { background: #e3edf5; color: #1a4769; font-weight: 700; }
-    .swatch.s-or { background: #e3edf5; border-color: #1a476933; }
-    .gcell.vac { background: #efe9da; color: #8a6a2e; font-weight: 700; font-style: italic; }
-    .swatch.vac { background: #efe9da; border-color: #8a6a2e55; }
+    .btn-subtle:hover { background: #ddd; }
 
-    .grid-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      margin: 20px 0;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .lg { display: inline-flex; align-items: center; gap: 8px; }
-    .swatch {
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
-      border: 1px solid var(--rule);
-    }
-
-    footer {
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid var(--rule);
-      color: var(--muted);
-      font-size: 12px;
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .watermark a { color: var(--accent); text-decoration: none; font-weight: 700; }
     @media print {
-      body { padding: 0; }
-      .grid-frame { box-shadow: none; border-radius: 0; }
+      @page { size: landscape; margin: 0.4in; }
+      body { padding: 0; font-size: 9px; }
+      .container { max-width: none; }
+      .print-actions { display: none; }
+      header { border-bottom-width: 1.5pt; margin-bottom: 12pt; }
+      .grid-frame { border-width: 0.75pt; }
+      /* Without this the scroll container stays at overflow-x:auto and the
+         grid renders at its max-content width — the right edge (Total +
+         Weekend columns and any days past ~8) falls off the page. */
+      .grid-frame-scroll { overflow: visible; }
+      /* Default print: hide the legend (swatches are colorless without
+         print-color-adjust). In "Print in color" mode we restore it. */
+      .grid-legend { display: none; }
+      body.print-color .grid-legend { display: flex; }
+      body.print-color .swatch {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .grid-schedule {
+        grid-template-columns: 80px repeat(var(--n-days), minmax(0, 1fr)) 36px 40px;
+        width: 100%;
+      }
+      .gh { padding: 4px 2px; font-size: 8px; border-width: 0.5pt; }
+      .gname { padding: 4px; font-size: 8px; position: static; border-width: 0.5pt; border-right-width: 1.2pt; }
+      .gcell { min-height: 20px; padding: 1px; border-width: 0.5pt; }
+      .gtotal { padding: 2px; font-size: 8px; position: static; border-width: 0.5pt; border-left-width: 1.2pt; }
+      .gh, .gname, .gcell, .gtotal, .gh.weekend, .gcell.weekend { background: white !important; }
+      .schedule-notes { page-break-inside: avoid; border-width: 0.5pt; }
+      body.print-color .grid-legend { margin: 12pt 0; }
+      .grid-watermark {
+        padding: 4pt 8pt;
+        border-top-width: 0.5pt;
+        font-size: 7pt;
+        background: white !important;
+      }
     }
-    </style>
+    .gcell.s-ob { background: #f4e8d3; color: #6e4a16; box-shadow: inset 0 0 0 1px #6e4a1633; font-weight: 700; }
+    .swatch.s-ob { background: #f4e8d3; border: 1px solid #6e4a1644; }
+    @media print { .gcell.s-ob { background: white !important; color: black !important; box-shadow: none !important; } }
+    @media print { body.print-color .gcell.s-ob { background: #f4e8d3 !important; color: #6e4a16 !important; box-shadow: inset 0 0 0 1px #6e4a1633 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    .gcell.s-or { background: #e3edf5; color: #1a4769; box-shadow: inset 0 0 0 1px #1a476933; font-weight: 700; }
+    .swatch.s-or { background: #e3edf5; border: 1px solid #1a476944; }
+    @media print { .gcell.s-or { background: white !important; color: black !important; box-shadow: none !important; } }
+    @media print { body.print-color .gcell.s-or { background: #e3edf5 !important; color: #1a4769 !important; box-shadow: inset 0 0 0 1px #1a476933 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    .gcell.vacation { background: #f4f1e8; color: #4a4a4a; box-shadow: inset 0 0 0 1px #d1cdbc; font-weight: 700; }
+    .swatch.vacation { background: #f4f1e8; border: 1px solid #4a4a4a55; }
+    .gcell.block { background: #f8f9fa; color: #495057; box-shadow: inset 0 0 0 1px #ced4da; font-weight: 700; }
+    .swatch.block { background: #f8f9fa; border: 1px solid #49505755; }
+    @media print {
+      .gcell.vacation { background: white !important; color: black !important; box-shadow: none !important; font-style: italic; }
+      .gcell.block { background: white !important; color: black !important; box-shadow: none !important; }
+      body.print-color .gcell.vacation { background: #f4f1e8 !important; color: #4a4a4a !important; box-shadow: inset 0 0 0 1px #d1cdbc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-style: italic; }
+      body.print-color .gcell.block { background: #f8f9fa !important; color: #495057 !important; box-shadow: inset 0 0 0 1px #ced4da !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
+    </style></style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>Call Schedule</h1>
-      <div class="subtitle">June 1, 2026 &ndash; June 14, 2026</div>
-    </header>
+    <div class="container">
+        <div class="print-actions">
+            <button class="btn-subtle" onclick="window.print()">Print Schedule</button>
+            <button class="btn-subtle" onclick="printInColor()">Print in Color</button>
+        </div>
+        <script>
+            function printInColor() {
+                document.body.classList.add('print-color');
+                window.print();
+            }
+            window.addEventListener('afterprint', function () {
+                document.body.classList.remove('print-color');
+            });
+        </script>
+        <header>
+            <div class="header-copy">
+                <h1>Call Schedule</h1>
+                <div class="subtitle">June 1 &ndash; June 14, 2026</div>
+            </div>
+        </header>
 
-    <div class="grid-frame">
-      <div class="grid-frame-scroll">
-        <div class="grid-schedule" style="grid-template-columns: 120px repeat(14, minmax(60px, 1fr)) 80px 80px;">
-          <div class="gh corner">Clinician</div>
+        <div class="grid-frame">
+            <div class="grid-frame-scroll">
+                <div class="grid-schedule" style="--n-days: 14;">
+                    <div class="gh corner">Clinician</div>
 <div class="gh">Mon 1</div>
 <div class="gh">Tue 2</div>
 <div class="gh">Wed 3</div>
@@ -190,126 +240,126 @@
 <div class="gh totals">Total</div>
 <div class="gh totals">Weekend</div>
 
-          <div class="gname">A. Fox</div>
-<div class="gcell empty">&middot;</div>
+                    <div class="gname">A. Fox</div>
+<div class="gcell empty"></div>
 <div class="gcell s-or">OR</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell weekend s-ob">OB</div>
-<div class="gcell weekend empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell weekend empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell s-or">OR</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
 <div class="gcell s-or">OR</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell weekend empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell weekend empty"></div>
 <div class="gcell weekend s-or">OR</div>
-<div class="gtotal col-total">5<span class="target"> / 5</span></div>
-<div class="gtotal col-weekend">2<span class="target"> / 2</span></div>
+<div class="gtotal col-total">5<span class="target">/5</span></div>
+<div class="gtotal col-weekend">2<span class="target">/2</span></div>
 <div class="gname">C. Johns</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell weekend empty">&middot;</div>
-<div class="gcell weekend empty">&middot;</div>
+<div class="gcell weekend empty"></div>
+<div class="gcell weekend empty"></div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell vac">NO OB</div>
+<div class="gcell empty"></div>
+<div class="gcell block">NO OB</div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell weekend empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell weekend empty"></div>
 <div class="gcell weekend s-ob">OB</div>
-<div class="gtotal col-total over">5<span class="target"> / 4</span></div>
-<div class="gtotal col-weekend">1<span class="target"> / 1</span></div>
+<div class="gtotal col-total">5<span class="target">/4</span></div>
+<div class="gtotal col-weekend">1<span class="target">/1</span></div>
 <div class="gname">J. Judy</div>
 <div class="gcell s-or">OR</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell s-or">OR</div>
-<div class="gcell weekend empty">&middot;</div>
+<div class="gcell weekend empty"></div>
 <div class="gcell weekend s-or">OR</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell weekend s-ob">OB</div>
-<div class="gcell weekend empty">&middot;</div>
-<div class="gtotal col-total">5<span class="target"> / 5</span></div>
-<div class="gtotal col-weekend">2<span class="target"> / 2</span></div>
+<div class="gcell weekend empty"></div>
+<div class="gtotal col-total">5<span class="target">/5</span></div>
+<div class="gtotal col-weekend">2<span class="target">/2</span></div>
 <div class="gname">M. Cary</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
 <div class="gcell s-or">OR</div>
-<div class="gcell vac">VAC</div>
-<div class="gcell weekend vac">VAC</div>
-<div class="gcell weekend vac">VAC</div>
+<div class="gcell vacation">VAC</div>
+<div class="gcell weekend vacation">VAC</div>
+<div class="gcell weekend vacation">VAC</div>
 <div class="gcell s-or">OR</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell weekend s-or">OR</div>
-<div class="gcell weekend empty">&middot;</div>
-<div class="gtotal col-total">4<span class="target"> / 4</span></div>
-<div class="gtotal col-weekend">1<span class="target"> / 1</span></div>
+<div class="gcell weekend empty"></div>
+<div class="gtotal col-total">4<span class="target">/4</span></div>
+<div class="gtotal col-weekend">1<span class="target">/1</span></div>
 <div class="gname">R. Aken</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell s-or">OR</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell weekend s-or">OR</div>
-<div class="gcell weekend empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell weekend empty"></div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell s-or">OR</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
 <div class="gcell s-or">OR</div>
-<div class="gcell weekend empty">&middot;</div>
-<div class="gcell weekend empty">&middot;</div>
-<div class="gtotal col-total">4<span class="target"> / 4</span></div>
-<div class="gtotal col-weekend">1<span class="target"> / 1</span></div>
+<div class="gcell weekend empty"></div>
+<div class="gcell weekend empty"></div>
+<div class="gtotal col-total">4<span class="target">/4</span></div>
+<div class="gtotal col-weekend">1<span class="target">/1</span></div>
 <div class="gname">S. Reed</div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell vac">NO CALL</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell block">NO CALL</div>
+<div class="gcell empty"></div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell weekend empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell weekend empty"></div>
 <div class="gcell weekend s-ob">OB</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell empty">&middot;</div>
-<div class="gcell empty">&middot;</div>
+<div class="gcell empty"></div>
+<div class="gcell empty"></div>
 <div class="gcell s-ob">OB</div>
-<div class="gcell weekend empty">&middot;</div>
-<div class="gcell weekend empty">&middot;</div>
-<div class="gtotal col-total over">5<span class="target"> / 4</span></div>
-<div class="gtotal col-weekend">1<span class="target"> / 1</span></div>
+<div class="gcell weekend empty"></div>
+<div class="gcell weekend empty"></div>
+<div class="gtotal col-total">5<span class="target">/4</span></div>
+<div class="gtotal col-weekend">1<span class="target">/1</span></div>
+
+                </div>
+            </div>
+            <div class="grid-watermark">
+                <span>June 1 &ndash; June 14, 2026</span>
+                <span>Built with <a href="https://niceschedule.com">NiceSchedule.com</a></span>
+            </div>
+        </div>
+
+        <div class="grid-legend">
+            <span class="lg"><span class="swatch s-ob"></span> OB call</span>
+<span class="lg"><span class="swatch s-or"></span> OR call</span>
+<span class="lg"><span class="swatch vacation"></span> Vacation</span>
+<span class="lg"><span class="swatch block"></span> No-call / hard block</span>
 
         </div>
-      </div>
+
+        
     </div>
-
-    
-
-    <div class="grid-legend">
-      <span class="lg"><span class="swatch s-ob"></span> OB call</span>
-<span class="lg"><span class="swatch s-or"></span> OR call</span>
-<span class="lg"><span class="swatch vac"></span> Vacation / hard block</span>
-
-    </div>
-
-    <footer>
-      <div>June 1, 2026 &ndash; June 14, 2026</div>
-      <div class="watermark">Built with <a href="https://niceschedule.com">NiceSchedule.com</a></div>
-    </footer>
-  </div>
 </body>
 </html>

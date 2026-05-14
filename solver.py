@@ -23,6 +23,7 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from html import escape
 from pathlib import Path
 
 from ortools.sat.python import cp_model
@@ -237,7 +238,18 @@ SHIFT_FALLBACK_PALETTE = [
     ("#f4d8d6", "#7a2a22"),
 ]
 
-VAC_COLORS = ("#efe9da", "#8a6a2e")
+# Vacation and other hard blocks are visually distinct in the HTML output.
+# Neutral, professional tones that print well and look "official".
+VACATION_BG = "#f4f1e8"
+VACATION_INK = "#4a4a4a"
+VACATION_RULE = "#d1cdbc"
+BLOCK_BG = "#f8f9fa"
+BLOCK_INK = "#495057"
+BLOCK_RULE = "#ced4da"
+
+
+def hard_block_kind(request: RequestRow) -> str:
+    return "vacation" if request.request_type == "vacation" else "block"
 
 
 def shift_colors(shift_type: str) -> tuple[str, str]:
@@ -272,16 +284,16 @@ def write_html_schedule(
         d = datetime.strptime(a["date"], "%Y-%m-%d").date()
         assignment_map[(d, a["clinician_id"])].append(a["shift_type"])
 
-    hard_block_map: dict[tuple[date, str], list[str]] = defaultdict(list)
+    hard_block_map: dict[tuple[date, str], list[tuple[str, str]]] = defaultdict(list)
     for r in requests:
         if r.hard:
             for d in dates_between(r.start_date, r.end_date):
                 label = hard_block_label(r)
-                labels = hard_block_map[(d, r.clinician_id)]
-                if label not in labels:
-                    labels.append(label)
+                item = (label, hard_block_kind(r))
+                items = hard_block_map[(d, r.clinician_id)]
+                if item not in items:
+                    items.append(item)
 
-    # Per-clinician totals for the right-side summary columns.
     totals: dict[str, int] = defaultdict(int)
     weekend_totals: dict[str, int] = defaultdict(int)
     for (d, cid), shifts in assignment_map.items():
@@ -289,7 +301,6 @@ def write_html_schedule(
         if is_weekend(d):
             weekend_totals[cid] += len(shifts)
 
-    # Soft requests the solver couldn't honor — surfaced in the Notes block.
     soft_violations: list[tuple[RequestRow, date, str]] = []
     for r in requests:
         if r.hard:
@@ -299,180 +310,33 @@ def write_html_schedule(
                 if r.shift_type is None or r.shift_type == shift:
                     soft_violations.append((r, d, shift))
 
-    # Shift types actually present in this schedule, in display order.
     shift_types = sorted({c.shift_type for c in coverage})
 
-    # Per-shift CSS — generated from the palette so adaptations get colors for free.
     shift_css = ""
     for st in shift_types:
         bg, ink = shift_colors(st)
         cls = shift_css_class(st)
+        # Screen: tinted bg + inset frame.
+        # Default print: text only — no border, no bg. Chiefs read the cell
+        #   label ("OR" / "OB") directly; identification doesn't need color.
+        # "Print in color" (body.print-color): force-print the screen styling.
         shift_css += (
-            f"    .gcell.{cls} {{ background: {bg}; color: {ink}; "
-            f"font-weight: 700; }}\n"
-            f"    .swatch.{cls} {{ background: {bg}; border-color: {ink}33; }}\n"
+            f"    .gcell.{cls} {{ background: {bg}; color: {ink}; box-shadow: inset 0 0 0 1px {ink}33; font-weight: 700; }}\n"
+            f"    .swatch.{cls} {{ background: {bg}; border: 1px solid {ink}44; }}\n"
+            f"    @media print {{ .gcell.{cls} {{ background: white !important; color: black !important; box-shadow: none !important; }} }}\n"
+            f"    @media print {{ body.print-color .gcell.{cls} {{ background: {bg} !important; color: {ink} !important; box-shadow: inset 0 0 0 1px {ink}33 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }} }}\n"
         )
-    vac_bg, vac_ink = VAC_COLORS
     shift_css += (
-        f"    .gcell.vac {{ background: {vac_bg}; color: {vac_ink}; "
-        f"font-weight: 700; font-style: italic; }}\n"
-        f"    .swatch.vac {{ background: {vac_bg}; border-color: {vac_ink}55; }}\n"
-    )
-
-    css = (
-        """
-    :root {
-      --bg: #fbfaf7;
-      --panel: #ffffff;
-      --panel-soft: #f4f1e8;
-      --ink: #101418;
-      --muted: #66717a;
-      --rule: #e2dccf;
-      --rule-2: #eee8dc;
-      --accent: #153f63;
-      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    }
-    body {
-      margin: 0;
-      padding: 40px 20px;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: var(--font-sans);
-    }
-    .container { max-width: 1200px; margin: 0 auto; }
-    header { margin-bottom: 30px; }
-    h1 { font-size: 24px; margin: 0 0 8px; }
-    .subtitle { color: var(--muted); font-size: 14px; }
-
-    .grid-frame {
-      border: 1px solid var(--rule);
-      border-radius: 10px;
-      background: var(--panel);
-      overflow: hidden;
-      box-shadow: 0 16px 30px -22px rgba(15, 53, 86, 0.18);
-    }
-    .grid-frame-scroll { overflow-x: auto; }
-    .grid-schedule {
-      display: grid;
-      min-width: 800px;
-      font-size: 12px;
-    }
-    .gh {
-      padding: 10px 6px;
-      border-bottom: 1px solid var(--rule);
-      border-right: 1px solid var(--rule-2);
-      background: var(--panel-soft);
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      text-align: center;
-      white-space: nowrap;
-    }
-    .gh.corner { text-align: left; padding-left: 14px; }
-    .gh.weekend { background: #efe7d2; }
-
-    .gname {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--rule-2);
-      border-right: 1px solid var(--rule);
-      background: #faf7ee;
-      color: var(--ink);
-      font-weight: 700;
-      position: sticky;
-      left: 0;
-      z-index: 2;
-    }
-    .gcell {
-      padding: 12px 4px;
-      border-bottom: 1px solid var(--rule-2);
-      border-right: 1px solid var(--rule-2);
-      text-align: center;
-      color: var(--muted);
-      font-weight: 600;
-    }
-    .gcell.weekend { background: #fbf7ea; }
-    .gcell.empty { color: #c8cfd6; }
-
-    .gh.totals { background: var(--panel-soft); }
-    .gtotal {
-      padding: 12px 8px;
-      border-bottom: 1px solid var(--rule-2);
-      border-left: 1px solid var(--rule);
-      background: #faf7ee;
-      color: var(--ink);
-      font-weight: 700;
-      text-align: center;
-      font-variant-numeric: tabular-nums;
-      position: sticky;
-      z-index: 2;
-    }
-    .gtotal.col-total { right: 80px; }
-    .gtotal.col-weekend { right: 0; }
-    .gtotal.over { color: #963c2f; }
-    .gtotal.under { color: #8a5a12; }
-    .gtotal .target { color: var(--muted); font-weight: 600; }
-
-    .schedule-notes {
-      margin: 20px 0 0;
-      padding: 16px 20px;
-      background: var(--panel-soft);
-      border: 1px solid var(--rule);
-      border-radius: 8px;
-    }
-    .schedule-notes h2 {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--muted);
-      margin: 0 0 8px;
-    }
-    .schedule-notes ul {
-      margin: 0;
-      padding-left: 20px;
-      font-size: 13px;
-      color: var(--ink);
-    }
-    .schedule-notes li { margin-bottom: 4px; }
-    .schedule-notes li em { color: var(--muted); font-style: normal; }
-"""
-        + shift_css
-        + """
-    .grid-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      margin: 20px 0;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .lg { display: inline-flex; align-items: center; gap: 8px; }
-    .swatch {
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
-      border: 1px solid var(--rule);
-    }
-
-    footer {
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid var(--rule);
-      color: var(--muted);
-      font-size: 12px;
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .watermark a { color: var(--accent); text-decoration: none; font-weight: 700; }
-    @media print {
-      body { padding: 0; }
-      .grid-frame { box-shadow: none; border-radius: 0; }
-    }
-    """
+        f"    .gcell.vacation {{ background: {VACATION_BG}; color: {VACATION_INK}; box-shadow: inset 0 0 0 1px {VACATION_RULE}; font-weight: 700; }}\n"
+        f"    .swatch.vacation {{ background: {VACATION_BG}; border: 1px solid {VACATION_INK}55; }}\n"
+        f"    .gcell.block {{ background: {BLOCK_BG}; color: {BLOCK_INK}; box-shadow: inset 0 0 0 1px {BLOCK_RULE}; font-weight: 700; }}\n"
+        f"    .swatch.block {{ background: {BLOCK_BG}; border: 1px solid {BLOCK_INK}55; }}\n"
+        f"    @media print {{\n"
+        f"      .gcell.vacation {{ background: white !important; color: black !important; box-shadow: none !important; font-style: italic; }}\n"
+        f"      .gcell.block {{ background: white !important; color: black !important; box-shadow: none !important; }}\n"
+        f"      body.print-color .gcell.vacation {{ background: {VACATION_BG} !important; color: {VACATION_INK} !important; box-shadow: inset 0 0 0 1px {VACATION_RULE} !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-style: italic; }}\n"
+        f"      body.print-color .gcell.block {{ background: {BLOCK_BG} !important; color: {BLOCK_INK} !important; box-shadow: inset 0 0 0 1px {BLOCK_RULE} !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}\n"
+        f"    }}\n"
     )
 
     # Header row.
@@ -486,122 +350,279 @@ def write_html_schedule(
     # Clinician rows.
     rows_html = ""
     for cid in clinician_ids:
-        rows_html += f'<div class="gname">{clinicians[cid]["name"]}</div>\n'
+        rows_html += f'<div class="gname">{escape(clinicians[cid]["name"])}</div>\n'
         for d in all_dates:
             weekend_cls = " weekend" if is_weekend(d) else ""
             shifts = assignment_map.get((d, cid), [])
             hard_blocks = hard_block_map.get((d, cid), [])
 
             if shifts:
-                # If the same person is somehow on two shifts the same day,
-                # show them stacked rather than dropping one silently.
                 label = " / ".join(shifts)
                 cls = shift_css_class(shifts[0])
-                rows_html += (
-                    f'<div class="gcell{weekend_cls} {cls}">{label}</div>\n'
-                )
+                rows_html += f'<div class="gcell{weekend_cls} {cls}">{escape(label)}</div>\n'
             elif hard_blocks:
-                label = " / ".join(hard_blocks)
-                rows_html += f'<div class="gcell{weekend_cls} vac">{label}</div>\n'
+                label = " / ".join(label for label, _kind in hard_blocks)
+                block_kind = "vacation" if any(kind == "vacation" for _label, kind in hard_blocks) else "block"
+                rows_html += f'<div class="gcell{weekend_cls} {block_kind}">{escape(label)}</div>\n'
             else:
-                rows_html += f'<div class="gcell{weekend_cls} empty">&middot;</div>\n'
+                rows_html += f'<div class="gcell{weekend_cls} empty"></div>\n'
 
-        # Right-side totals for this clinician.
         target = parse_int(clinicians[cid].get("target_shifts", ""), 0)
         weekend_target = parse_int(clinicians[cid].get("target_weekend_shifts", ""), 0)
         total = totals[cid]
         weekend = weekend_totals[cid]
 
-        total_cls = "gtotal col-total"
-        if target and total > target:
-            total_cls += " over"
-        elif target and total < target:
-            total_cls += " under"
-        total_inner = (
-            f'{total}<span class="target"> / {target}</span>' if target else f'{total}'
-        )
-        rows_html += f'<div class="{total_cls}">{total_inner}</div>\n'
+        total_inner = f'{total}<span class="target">/{target}</span>' if target else f'{total}'
+        rows_html += f'<div class="gtotal col-total">{total_inner}</div>\n'
+        weekend_inner = f'{weekend}<span class="target">/{weekend_target}</span>' if weekend_target else f'{weekend}'
+        rows_html += f'<div class="gtotal col-weekend">{weekend_inner}</div>\n'
 
-        weekend_cls = "gtotal col-weekend"
-        if weekend_target and weekend > weekend_target:
-            weekend_cls += " over"
-        weekend_inner = (
-            f'{weekend}<span class="target"> / {weekend_target}</span>'
-            if weekend_target
-            else f'{weekend}'
-        )
-        rows_html += f'<div class="{weekend_cls}">{weekend_inner}</div>\n'
-
-    # Legend — one entry per shift type actually used, then VAC.
+    # Legend.
     legend_items = ""
     for st in shift_types:
         cls = shift_css_class(st)
-        legend_items += (
-            f'<span class="lg"><span class="swatch {cls}"></span> {st} call</span>\n'
-        )
-    legend_items += (
-        '<span class="lg"><span class="swatch vac"></span> Vacation / hard block</span>\n'
-    )
+        legend_items += f'<span class="lg"><span class="swatch {cls}"></span> {escape(st)} call</span>\n'
+    legend_items += '<span class="lg"><span class="swatch vacation"></span> Vacation</span>\n'
+    legend_items += '<span class="lg"><span class="swatch block"></span> No-call / hard block</span>\n'
 
-    # Notes block: only soft-request violations. Hard-request honoring is
-    # implicit (the solver couldn't have run otherwise).
+    # Notes.
     notes_items = ""
     for r, d, shift in soft_violations:
-        name = clinicians.get(r.clinician_id, {}).get("name", r.clinician_id)
+        name = escape(clinicians.get(r.clinician_id, {}).get("name", r.clinician_id))
         when = d.strftime("%a %b %-d")
-        type_label = r.request_type.replace("_", " ")
-        note_suffix = f" <em>{r.note}</em>" if r.note else ""
-        notes_items += (
-            f"<li>{name} — {type_label} on {when} not honored; "
-            f"covering {shift}.{note_suffix}</li>\n"
-        )
-    notes_html = (
-        f'<section class="schedule-notes">\n'
-        f"  <h2>Notes</h2>\n"
-        f"  <ul>{notes_items}</ul>\n"
-        f"</section>"
-        if notes_items
-        else ""
-    )
+        type_label = escape(r.request_type.replace("_", " "))
+        note_suffix = f" <em>{escape(r.note)}</em>" if r.note else ""
+        notes_items += f"<li>{name} — {type_label} on {when} not honored; covering {escape(shift)}.{note_suffix}</li>\n"
+    notes_html = f'<section class="schedule-notes"><h2>Notes</h2><ul>{notes_items}</ul></section>' if notes_items else ""
 
-    start_date_str = all_dates[0].strftime("%B %-d, %Y")
-    end_date_str = all_dates[-1].strftime("%B %-d, %Y")
+    css = (
+        """
+    :root {
+      --bg: #ffffff;
+      --ink: #000000;
+      --muted: #666666;
+      --rule: #dddddd;
+      --rule-strong: #000000;
+      --weekend: #f5f5f5;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 40px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.2;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    .container { max-width: 1600px; margin: 0 auto; }
+    header {
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 12px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    h1 { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+    .subtitle { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; }
+
+    .grid-frame { border: 1px solid var(--rule-strong); background: #fff; }
+    .grid-frame-scroll { overflow-x: auto; }
+    .grid-schedule {
+      display: grid;
+      grid-template-columns: 140px repeat(var(--n-days), minmax(48px, 1fr)) 60px 60px;
+      width: max-content;
+      min-width: 100%;
+    }
+    .gh {
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--rule-strong);
+      border-right: 1px solid var(--rule);
+      background: #fcfcfc;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      text-align: center;
+    }
+    .gh.corner { text-align: left; padding-left: 12px; }
+    .gh.weekend { background: var(--weekend); }
+
+    .gname {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--rule);
+      border-right: 2px solid var(--rule-strong);
+      background: #fff;
+      font-weight: 700;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+    }
+    .gcell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 4px;
+      border-bottom: 1px solid var(--rule);
+      border-right: 1px solid var(--rule);
+    }
+    .gcell.weekend { background: #fafafa; }
+    .gcell.empty { color: #eee; }
+
+    .gtotal {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--rule);
+      border-left: 2px solid var(--rule-strong);
+      background: #fff;
+      font-weight: 800;
+      position: sticky;
+      z-index: 2;
+    }
+    .gtotal.col-total { right: 60px; }
+    .gtotal.col-weekend { right: 0; border-left: 1px solid var(--rule); }
+    .gtotal .target { color: var(--muted); font-size: 9px; font-weight: 400; margin-left: 2px; }
+
+    .grid-legend { display: flex; flex-wrap: wrap; gap: 20px; margin: 24px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+    .lg { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 12px; height: 12px; border: 1px solid #ccc; }
+
+    .schedule-notes { margin-top: 24px; padding: 16px; border: 1px solid var(--rule); font-size: 12px; }
+    .schedule-notes h2 { font-size: 11px; font-weight: 900; text-transform: uppercase; margin: 0 0 8px; }
+
+    /* Branding band lives INSIDE .grid-frame so a chief who tries to crop
+       it off the printout has to slice into the schedule box itself. */
+    .grid-watermark {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border-top: 1px solid var(--rule);
+      background: #fcfcfc;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .grid-watermark a {
+      color: var(--ink);
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .print-actions { margin-bottom: 24px; display: flex; gap: 12px; }
+    .btn-subtle {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: #eee;
+      color: #333;
+      border: 1px solid #ddd;
+      cursor: pointer;
+    }
+    .btn-subtle:hover { background: #ddd; }
+
+    @media print {
+      @page { size: landscape; margin: 0.4in; }
+      body { padding: 0; font-size: 9px; }
+      .container { max-width: none; }
+      .print-actions { display: none; }
+      header { border-bottom-width: 1.5pt; margin-bottom: 12pt; }
+      .grid-frame { border-width: 0.75pt; }
+      /* Without this the scroll container stays at overflow-x:auto and the
+         grid renders at its max-content width — the right edge (Total +
+         Weekend columns and any days past ~8) falls off the page. */
+      .grid-frame-scroll { overflow: visible; }
+      /* Default print: hide the legend (swatches are colorless without
+         print-color-adjust). In "Print in color" mode we restore it. */
+      .grid-legend { display: none; }
+      body.print-color .grid-legend { display: flex; }
+      body.print-color .swatch {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .grid-schedule {
+        grid-template-columns: 80px repeat(var(--n-days), minmax(0, 1fr)) 36px 40px;
+        width: 100%;
+      }
+      .gh { padding: 4px 2px; font-size: 8px; border-width: 0.5pt; }
+      .gname { padding: 4px; font-size: 8px; position: static; border-width: 0.5pt; border-right-width: 1.2pt; }
+      .gcell { min-height: 20px; padding: 1px; border-width: 0.5pt; }
+      .gtotal { padding: 2px; font-size: 8px; position: static; border-width: 0.5pt; border-left-width: 1.2pt; }
+      .gh, .gname, .gcell, .gtotal, .gh.weekend, .gcell.weekend { background: white !important; }
+      .schedule-notes { page-break-inside: avoid; border-width: 0.5pt; }
+      body.print-color .grid-legend { margin: 12pt 0; }
+      .grid-watermark {
+        padding: 4pt 8pt;
+        border-top-width: 0.5pt;
+        font-size: 7pt;
+        background: white !important;
+      }
+    }
+"""
+        + shift_css
+        + """
+    </style>"""
+    )
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Call Schedule | NiceSchedule</title>
-  <style>{css}</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Schedule | NiceSchedule</title>
+    <style>{css}</style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>Call Schedule</h1>
-      <div class="subtitle">{start_date_str} &ndash; {end_date_str}</div>
-    </header>
-
-    <div class="grid-frame">
-      <div class="grid-frame-scroll">
-        <div class="grid-schedule" style="grid-template-columns: 120px repeat({num_days}, minmax(60px, 1fr)) 80px 80px;">
-          {header_html}
-          {rows_html}
+    <div class="container">
+        <div class="print-actions">
+            <button class="btn-subtle" onclick="window.print()">Print Schedule</button>
+            <button class="btn-subtle" onclick="printInColor()">Print in Color</button>
         </div>
-      </div>
+        <script>
+            function printInColor() {{
+                document.body.classList.add('print-color');
+                window.print();
+            }}
+            window.addEventListener('afterprint', function () {{
+                document.body.classList.remove('print-color');
+            }});
+        </script>
+        <header>
+            <div class="header-copy">
+                <h1>Call Schedule</h1>
+                <div class="subtitle">{all_dates[0].strftime('%B %-d')} &ndash; {all_dates[-1].strftime('%B %-d, %Y')}</div>
+            </div>
+        </header>
+
+        <div class="grid-frame">
+            <div class="grid-frame-scroll">
+                <div class="grid-schedule" style="--n-days: {num_days};">
+                    {header_html}
+                    {rows_html}
+                </div>
+            </div>
+            <div class="grid-watermark">
+                <span>{all_dates[0].strftime('%B %-d')} &ndash; {all_dates[-1].strftime('%B %-d, %Y')}</span>
+                <span>Built with <a href="https://niceschedule.com">NiceSchedule.com</a></span>
+            </div>
+        </div>
+
+        <div class="grid-legend">
+            {legend_items}
+        </div>
+
+        {notes_html}
     </div>
-
-    {notes_html}
-
-    <div class="grid-legend">
-      {legend_items}
-    </div>
-
-    <footer>
-      <div>{start_date_str} &ndash; {end_date_str}</div>
-      <div class="watermark">Built with <a href="https://niceschedule.com">NiceSchedule.com</a></div>
-    </footer>
-  </div>
 </body>
 </html>
 """
