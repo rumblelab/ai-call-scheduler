@@ -448,7 +448,7 @@ def write_html_schedule(
       text-transform: uppercase;
       text-align: center;
     }
-    .gh.corner { text-align: left; padding-left: 12px; }
+    .gh.corner { text-align: left; padding-left: 12px; position: sticky; left: 0; z-index: 3; }
     .gh.weekend { background: var(--weekend); }
 
     .gname {
@@ -556,7 +556,7 @@ def write_html_schedule(
         grid-template-columns: 80px repeat(var(--n-days), minmax(0, 1fr)) 36px 40px;
         width: 100%;
       }
-      .gh { padding: 4px 2px; font-size: 8px; border-width: 0.5pt; }
+      .gh { padding: 4px 2px; font-size: 8px; border-width: 0.5pt; position: static; }
       .gname { padding: 4px; font-size: 8px; position: static; border-width: 0.5pt; border-right-width: 1.2pt; }
       .gcell { min-height: 20px; padding: 1px; border-width: 0.5pt; }
       .gtotal { padding: 2px; font-size: 8px; position: static; border-width: 0.5pt; border-left-width: 1.2pt; }
