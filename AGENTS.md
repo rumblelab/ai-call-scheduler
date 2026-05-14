@@ -38,8 +38,14 @@ The repo is a tutorial. Its files are stable artifacts that every future user cl
 **Create or edit these for the user's actual schedule:**
 
 - `data/my_data/clinicians.csv`, `coverage.csv`, `requests.csv`, `history.csv` (copy from `data/template/` and adapt)
+- `data/my_data/shift_pattern.csv` (drives `scripts/generate_coverage.py` — rows of `shift_type,weekday_mask,required_count`; included in `data/template/`)
 - `config/my_rules.json` (copy of `config/my_rules.template.json`)
-- `SHIFT_PATTERN` inside `scripts/generate_coverage.py` is fine to edit; don't restructure the script.
+
+Notes on the data files:
+
+- In `clinicians.csv`, leave `clinician_id` blank by default — it auto-derives from `name` (e.g. `Alice Smith` → `alice_smith`). Fill it in explicitly only when two clinicians share a name.
+- In `requests.csv` and `history.csv`, the `clinician_id` value can be the canonical id, the slug, or the name verbatim. They all resolve to the same clinician, so a user typing `Alice Smith` in a request row is fine.
+- `requests.csv` supports four `request_type` values: `vacation`, `no_call`, `prefer_off`, and `lock`. The first three block; `lock` **pins** a clinician to a specific shift on a specific date (`shift_type` required, `hard` ignored — locks are always hard). Use `lock` when the user says things like "Cary takes June 5 OR no matter what."
 
 If the user's setup genuinely needs a change to `solver.py` (a new column the solver has to interpret, a new constraint type), do not silently add it. Describe in plain English what change you'd make and why, and wait for the user to say yes before editing. One change at a time, only when the user has asked for it.
 
@@ -47,7 +53,7 @@ If the user's setup genuinely needs a change to `solver.py` (a new column the so
 
 Use the first-time loop when the user is setting up the repo or changing the solver. If the user already has a working `data/my_data/` folder and `config/my_rules.json`, skip the dummy solve unless the environment changed or something broke. For recurring schedules, use the returning-month loop below.
 
-1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `config/sample_rules.json`, `config/my_rules.template.json`, the four CSVs in `data/sample/`, `data/template/README.md`, `scripts/generate_coverage.py`, `scripts/check_my_data.py`, `scripts/run_my_schedule.py`, `scripts/start_next_month.py`, and `solver.py`.
+1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `config/sample_rules.json`, `config/my_rules.template.json`, the four CSVs in `data/sample/`, `data/template/README.md`, `data/template/shift_pattern.csv`, `scripts/generate_coverage.py`, `scripts/check_my_data.py`, `scripts/run_my_schedule.py`, `scripts/start_next_month.py`, and `solver.py`.
 2. Run the dummy solve as-is (`.venv/bin/python solver.py`). Confirm it prints `Status: OPTIMAL`.
 3. **Open the rendered schedule for the user.** After every successful solve, run the platform's open command on the HTML output so they can see it without hunting:
    - macOS: `open output/sample_schedule.html`
@@ -58,7 +64,7 @@ Use the first-time loop when the user is setting up the repo or changing the sol
 4. Explain in plain English what the solver did and what's in the HTML.
 5. **Get them talking about their actual schedule.** Open with one open question, in your own words. Something like: *"Tell me about the schedule you're trying to build — how many people, what shifts, what time period?"* Then have a conversation. Do NOT present a structured multi-choice question or a numbered checklist of follow-ups.
 
-   You eventually need enough to fill in `clinicians.csv`, `coverage.csv`, `requests.csv`, and `history.csv` — but you don't need to extract it all up front. Take what they give you, fill in sensible defaults, run a solve, show them the HTML, and iterate from there. Synthetic IDs like `doc_01` are fine for early testing, and real display names are also fine if the user is comfortable with their local workflow.
+   You eventually need enough to fill in `clinicians.csv`, `coverage.csv`, `requests.csv`, and `history.csv` — but you don't need to extract it all up front. Take what they give you, fill in sensible defaults, run a solve, show them the HTML, and iterate from there. Default to leaving `clinician_id` blank and using real display names; the solver derives the id from the name and accepts names verbatim in `requests.csv`. Use synthetic ids only if the user prefers them or you're working with public/sensitive data.
 
    Things you'll need to know at some point, asked naturally as they come up:
    - roster size (and whether they want display names, short IDs, or both)
@@ -68,20 +74,22 @@ Use the first-time loop when the user is setting up the repo or changing the sol
    - vacation and no-call requests
    - what fairness means to them (totals, weekends, holidays, recent burden)
 
-   Once you have a coverage pattern, edit `SHIFT_PATTERN` in `scripts/generate_coverage.py` to match and run it for their month:
-   `.venv/bin/python scripts/generate_coverage.py --year 2026 --month 7 --out data/my_data/coverage.csv`.
+   Once you have a coverage pattern, write it to `data/my_data/shift_pattern.csv` (rows of `shift_type,weekday_mask,required_count` where `weekday_mask` is 7 characters Mon–Sun, e.g. `1111100` weekdays only, `0000011` weekends only) and run the generator:
+   `.venv/bin/python scripts/generate_coverage.py --year 2026 --month 7`.
 
    If a new shift type comes up (e.g. a second location, a backup call), also add the matching `can_<shift>` column to `clinicians.csv` or the solver will refuse to run.
 
    Once `data/my_data/` and `config/my_rules.json` exist, run the configured schedule with:
    `.venv/bin/python scripts/run_my_schedule.py`
+
+   That command first runs a preflight (`scripts/check_my_data.py`) that prints a Capacity summary — per-shift demand vs. eligible doctors' combined max, with a "tight" tag when headroom is thin. Glance at it before the solve output; if anything is short or tight, translate that into plain English for the user (e.g. *"OR coverage is tight this month — any extra vacation may make it hard to schedule"*), not by quoting headroom numbers.
 6. **The user drives the next change.** After the report, ask one open question — usually some version of *"anything you'd want to adjust?"* — and wait. Do not propose feature catalogs. Do not start adding fields, columns, or constraints the user did not ask for. When they do ask for something, change one thing, re-run, re-open the HTML, and report back.
 
 ## Returning next month
 
 Once the first real schedule works, don't restart from the tutorial every month. Keep using the user's configured files.
 
-1. Run `.venv/bin/python scripts/start_next_month.py --year 2026 --month 8`. This carries the prior output into `history.csv`, regenerates `coverage.csv`, and updates `config/my_rules.json` to write a dated output file.
+1. Run `.venv/bin/python scripts/start_next_month.py`. The script infers the next month from the configured output filename (or `--year 2026 --month 8` if the user wants a specific month). This carries the prior output into `history.csv`, regenerates `coverage.csv`, and updates `config/my_rules.json` to write a dated output file. The first line of output names the month chosen so you can confirm with the user before proceeding.
 2. Update `data/my_data/requests.csv` with the new vacation and no-call requests. If the user wants a clean request file, use `--reset-requests` when starting the month.
 3. Update `data/my_data/clinicians.csv` only for roster, eligibility, target, or max changes.
 4. Run the configured solve, not the sample solve:
@@ -92,5 +100,5 @@ Once the first real schedule works, don't restart from the tutorial every month.
 
 - Start with the sample solve so the mechanics are proven before real schedule data enters the workflow.
 - When real schedule data comes up, give a brief disclosure: the solver runs locally, but chat and coding-agent context may still be sent to the AI provider. See `docs/agent-privacy.md`.
-- Real display names and vacation-by-name are fine if the user is comfortable with that workflow. Offer IDs as an option for public examples or more sensitive setups, not as a requirement.
+- Real display names are the default — `clinician_id` auto-derives from `name`, and `requests.csv` accepts names verbatim. Use synthetic ids only when the user prefers them or for public/sensitive examples.
 - If the solver can't find a schedule, remove the most recent rule change first and tell the user which coverage rows were hardest to fill — don't lecture them about feasibility theory.

@@ -77,6 +77,49 @@
     }
     .gcell.weekend { background: #fbf7ea; }
     .gcell.empty { color: #c8cfd6; }
+
+    .gh.totals { background: var(--panel-soft); }
+    .gtotal {
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--rule-2);
+      border-left: 1px solid var(--rule);
+      background: #faf7ee;
+      color: var(--ink);
+      font-weight: 700;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      position: sticky;
+      z-index: 2;
+    }
+    .gtotal.col-total { right: 80px; }
+    .gtotal.col-weekend { right: 0; }
+    .gtotal.over { color: #963c2f; }
+    .gtotal.under { color: #8a5a12; }
+    .gtotal .target { color: var(--muted); font-weight: 600; }
+
+    .schedule-notes {
+      margin: 20px 0 0;
+      padding: 16px 20px;
+      background: var(--panel-soft);
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+    }
+    .schedule-notes h2 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    .schedule-notes ul {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .schedule-notes li { margin-bottom: 4px; }
+    .schedule-notes li em { color: var(--muted); font-style: normal; }
     .gcell.s-ob { background: #f4e8d3; color: #6e4a16; font-weight: 700; }
     .swatch.s-ob { background: #f4e8d3; border-color: #6e4a1633; }
     .gcell.s-or { background: #e3edf5; color: #1a4769; font-weight: 700; }
@@ -128,7 +171,7 @@
 
     <div class="grid-frame">
       <div class="grid-frame-scroll">
-        <div class="grid-schedule" style="grid-template-columns: 120px repeat(14, minmax(60px, 1fr));">
+        <div class="grid-schedule" style="grid-template-columns: 120px repeat(14, minmax(60px, 1fr)) 80px 80px;">
           <div class="gh corner">Clinician</div>
 <div class="gh">Mon 1</div>
 <div class="gh">Tue 2</div>
@@ -144,6 +187,8 @@
 <div class="gh">Fri 12</div>
 <div class="gh weekend">Sat 13</div>
 <div class="gh weekend">Sun 14</div>
+<div class="gh totals">Total</div>
+<div class="gh totals">Weekend</div>
 
           <div class="gname">A. Fox</div>
 <div class="gcell empty">&middot;</div>
@@ -160,6 +205,8 @@
 <div class="gcell empty">&middot;</div>
 <div class="gcell weekend empty">&middot;</div>
 <div class="gcell weekend s-or">OR</div>
+<div class="gtotal col-total">5<span class="target"> / 5</span></div>
+<div class="gtotal col-weekend">2<span class="target"> / 2</span></div>
 <div class="gname">C. Johns</div>
 <div class="gcell empty">&middot;</div>
 <div class="gcell empty">&middot;</div>
@@ -175,6 +222,8 @@
 <div class="gcell empty">&middot;</div>
 <div class="gcell weekend empty">&middot;</div>
 <div class="gcell weekend s-ob">OB</div>
+<div class="gtotal col-total over">5<span class="target"> / 4</span></div>
+<div class="gtotal col-weekend">1<span class="target"> / 1</span></div>
 <div class="gname">J. Judy</div>
 <div class="gcell s-or">OR</div>
 <div class="gcell empty">&middot;</div>
@@ -190,6 +239,8 @@
 <div class="gcell empty">&middot;</div>
 <div class="gcell weekend s-ob">OB</div>
 <div class="gcell weekend empty">&middot;</div>
+<div class="gtotal col-total">5<span class="target"> / 5</span></div>
+<div class="gtotal col-weekend">2<span class="target"> / 2</span></div>
 <div class="gname">M. Cary</div>
 <div class="gcell empty">&middot;</div>
 <div class="gcell s-ob">OB</div>
@@ -205,6 +256,8 @@
 <div class="gcell empty">&middot;</div>
 <div class="gcell weekend s-or">OR</div>
 <div class="gcell weekend empty">&middot;</div>
+<div class="gtotal col-total">4<span class="target"> / 4</span></div>
+<div class="gtotal col-weekend">1<span class="target"> / 1</span></div>
 <div class="gname">R. Aken</div>
 <div class="gcell empty">&middot;</div>
 <div class="gcell empty">&middot;</div>
@@ -220,6 +273,8 @@
 <div class="gcell s-or">OR</div>
 <div class="gcell weekend empty">&middot;</div>
 <div class="gcell weekend empty">&middot;</div>
+<div class="gtotal col-total">4<span class="target"> / 4</span></div>
+<div class="gtotal col-weekend">1<span class="target"> / 1</span></div>
 <div class="gname">S. Reed</div>
 <div class="gcell s-ob">OB</div>
 <div class="gcell vac">NO CALL</div>
@@ -235,10 +290,14 @@
 <div class="gcell s-ob">OB</div>
 <div class="gcell weekend empty">&middot;</div>
 <div class="gcell weekend empty">&middot;</div>
+<div class="gtotal col-total over">5<span class="target"> / 4</span></div>
+<div class="gtotal col-weekend">1<span class="target"> / 1</span></div>
 
         </div>
       </div>
     </div>
+
+    
 
     <div class="grid-legend">
       <span class="lg"><span class="swatch s-ob"></span> OB call</span>

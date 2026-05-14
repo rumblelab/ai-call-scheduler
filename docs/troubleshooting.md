@@ -73,6 +73,26 @@ A row in `requests.csv` has a `clinician_id` that doesn't exist in `clinicians.c
 
 Same idea: a row in `history.csv` points to a `clinician_id` that isn't in `clinicians.csv`, or to one whose `active` is `0`. Update the ID, mark the clinician active, or drop the history row.
 
+### `Lock request 'X' must set shift_type.`
+
+A row in `requests.csv` has `request_type=lock` but a blank `shift_type`. Locks pin a clinician to a specific shift on a specific date — they always need the shift named. Fill in `shift_type` (e.g. `OR`).
+
+### `Lock request 'X' did not match any coverage row for ...`
+
+The lock points at a date and shift_type that aren't in `coverage.csv`. Usually a typo in the date or the shift name. Open `coverage.csv` and confirm that exact (date, shift_type) row exists. If not, either fix the lock or add the coverage row.
+
+### `OR demand (X) exceeds combined max_shifts of eligible doctors (Y). No solver can cover this.`
+
+`check_my_data.py` found that the per-shift demand can't be covered even if every eligible doctor maxed out on that one shift. Three ways to fix:
+
+- Raise `max_shifts` on the doctors eligible for that shift (their actual cap was set too low).
+- Make more doctors eligible (flip `can_<shift>` to `1` for someone who can cover it).
+- Lower `required_count` in `coverage.csv` for that shift (or remove some of its rows).
+
+### `OR is tight: X shifts needed, Y capacity (headroom N). One lock or vacation may make it infeasible.`
+
+Not an error — the solver will run — but a chief should know. Any of the same three moves (raise max, add eligibility, reduce demand) buys headroom. Tightness is computed per shift type and per weekend; both can fire independently.
+
 ---
 
 ## Solver errors

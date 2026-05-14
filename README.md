@@ -103,8 +103,10 @@ For the next schedule:
 1. Start the month:
 
 ```bash
-.venv/bin/python scripts/start_next_month.py --year 2026 --month 8
+.venv/bin/python scripts/start_next_month.py
 ```
+
+That infers the next month from your last output filename (or jumps to next calendar month on a fresh repo). Pass `--year 2026 --month 8` explicitly if you want a specific month instead.
 
 2. Update `data/my_data/requests.csv` with the new vacation and no-call requests.
 3. Update `data/my_data/clinicians.csv` only for roster, eligibility, target, or max changes.

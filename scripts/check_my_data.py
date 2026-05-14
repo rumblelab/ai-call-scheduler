@@ -6,9 +6,24 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
+
+
+def slugify(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
+
+def resolve_clinician_key(value: str, known_ids: set[str]) -> str:
+    value = value.strip()
+    if not value or value in known_ids:
+        return value
+    slug = slugify(value)
+    if slug in known_ids:
+        return slug
+    return value
 
 
 REQUIRED_FIELDS = {
@@ -117,31 +132,51 @@ def main() -> int:
 
     active_ids: set[str] = set()
     seen_ids: set[str] = set()
+    clinician_max: dict[str, int] = {}
+    clinician_weekend_max: dict[str, int] = {}
     total_capacity = 0
     weekend_capacity = 0
     for index, row in enumerate(clinician_rows, start=2):
         clinician_id = row.get("clinician_id", "").strip()
+        name = row.get("name", "").strip()
         if not clinician_id:
-            errors.append(f"clinicians.csv row {index} has a blank clinician_id")
-            continue
+            if not name:
+                errors.append(
+                    f"clinicians.csv row {index} has no clinician_id and no name"
+                )
+                continue
+            clinician_id = slugify(name)
+            if not clinician_id:
+                errors.append(
+                    f"clinicians.csv row {index}: could not derive clinician_id "
+                    f"from name {name!r}; fill in clinician_id explicitly"
+                )
+                continue
+            row["clinician_id"] = clinician_id
         if clinician_id in seen_ids:
             errors.append(f"clinicians.csv has duplicate clinician_id {clinician_id!r}")
         seen_ids.add(clinician_id)
         if parse_bool(row.get("active", "1")):
             active_ids.add(clinician_id)
-            total_capacity += parse_nonnegative_int(
+            m = parse_nonnegative_int(
                 row.get("max_shifts", ""), f"clinicians.csv row {index} max_shifts", errors
             )
-            weekend_capacity += parse_nonnegative_int(
+            wm = parse_nonnegative_int(
                 row.get("max_weekend_shifts", ""),
                 f"clinicians.csv row {index} max_weekend_shifts",
                 errors,
             )
+            clinician_max[clinician_id] = m
+            clinician_weekend_max[clinician_id] = wm
+            total_capacity += m
+            weekend_capacity += wm
 
     if clinician_rows and not active_ids:
         errors.append("No active clinicians found in clinicians.csv")
 
     shift_types: set[str] = set()
+    shift_demand: Counter = Counter()
+    shift_weekend_demand: Counter = Counter()
     total_demand = 0
     weekend_demand = 0
     for index, row in enumerate(coverage_rows, start=2):
@@ -156,13 +191,16 @@ def main() -> int:
         count = parse_positive_int(
             row.get("required_count", ""), f"coverage.csv row {index} required_count", errors
         )
+        shift_demand[shift_type] += count
         total_demand += count
         if parse_date(raw_date) and datetime.strptime(raw_date.strip(), "%Y-%m-%d").weekday() >= 5:
+            shift_weekend_demand[shift_type] += count
             weekend_demand += count
 
     if not coverage_rows:
         errors.append("coverage.csv has no rows")
 
+    shift_eligible: dict[str, list[str]] = {}
     for shift_type in sorted(shift_types):
         column = eligibility_column(shift_type)
         if column not in clinician_fields:
@@ -176,9 +214,24 @@ def main() -> int:
         ]
         if not eligible:
             errors.append(f"No active clinicians are eligible for {shift_type}")
+            continue
+        shift_eligible[shift_type] = eligible
 
     check_reference_rows("requests.csv", request_rows, active_ids, errors)
     check_reference_rows("history.csv", history_rows, active_ids, errors)
+
+    # Per-shift-type capacity summary. Catches infeasibilities the global
+    # total-demand check would miss (e.g. plenty of total capacity, but only
+    # two doctors are eligible for OR and they're maxed).
+    summary_lines = build_capacity_summary(
+        shift_demand,
+        shift_weekend_demand,
+        shift_eligible,
+        clinician_max,
+        clinician_weekend_max,
+        errors,
+        warnings,
+    )
 
     if total_demand > total_capacity:
         warnings.append(
@@ -189,7 +242,7 @@ def main() -> int:
             f"Weekend demand ({weekend_demand}) exceeds total max_weekend_shifts ({weekend_capacity})."
         )
 
-    return report(errors, warnings)
+    return report(errors, warnings, summary_lines)
 
 
 def check_reference_rows(
@@ -200,13 +253,21 @@ def check_reference_rows(
 ) -> None:
     date_fields = ["date"] if filename == "history.csv" else ["start_date", "end_date"]
     for index, row in enumerate(rows, start=2):
-        clinician_id = row.get("clinician_id", "").strip()
-        if clinician_id and clinician_id not in active_ids:
-            errors.append(f"{filename} row {index} references unknown clinician {clinician_id!r}")
+        raw_id = row.get("clinician_id", "").strip()
+        clinician_id = resolve_clinician_key(raw_id, active_ids)
+        if raw_id and clinician_id not in active_ids:
+            errors.append(f"{filename} row {index} references unknown clinician {raw_id!r}")
         for field in date_fields:
             value = row.get(field, "")
             if value and not parse_date(value):
                 errors.append(f"{filename} row {index} has an invalid {field} {value!r}")
+        if filename == "requests.csv":
+            request_type = row.get("request_type", "").strip().lower()
+            if request_type == "lock" and not row.get("shift_type", "").strip():
+                errors.append(
+                    f"{filename} row {index} is a lock but has no shift_type "
+                    "(locks must name the shift to pin)"
+                )
 
 
 def parse_nonnegative_int(value: str, label: str, errors: list[str]) -> int:
@@ -231,7 +292,94 @@ def parse_positive_int(value: str, label: str, errors: list[str]) -> int:
     return parsed
 
 
-def report(errors: list[str], warnings: list[str]) -> int:
+def build_capacity_summary(
+    shift_demand: Counter,
+    shift_weekend_demand: Counter,
+    shift_eligible: dict[str, list[str]],
+    clinician_max: dict[str, int],
+    clinician_weekend_max: dict[str, int],
+    errors: list[str],
+    warnings: list[str],
+) -> list[str]:
+    """Build the per-shift-type Capacity summary lines, and append any
+    infeasibility errors or tightness warnings while we're at it.
+
+    "Infeasible" here means demand for a single shift type exceeds the
+    combined max_shifts of every doctor eligible for it — i.e. even if those
+    doctors covered nothing else they couldn't fill the shift. "Tight" means
+    the headroom is small enough that a single vacation week could tip the
+    solve over: floor of 2, or ~1/6 of demand for larger months.
+    """
+    if not shift_demand:
+        return []
+
+    label_width = max(len(s) for s in shift_demand)
+
+    def tight_threshold(demand: int) -> int:
+        return max(2, demand // 6)
+
+    def line(shift_type: str, demand: int, cap: int, eligible_n: int) -> str:
+        headroom = cap - demand
+        base = (
+            f"{shift_type:<{label_width}}  "
+            f"{demand:>3} shifts, {eligible_n} eligible (combined max {cap})"
+        )
+        if headroom < 0:
+            return f"{base}. Short by {-headroom}."
+        if headroom <= tight_threshold(demand):
+            return f"{base}. Headroom {headroom} — tight."
+        return f"{base}. Headroom {headroom}."
+
+    lines: list[str] = ["Capacity summary:"]
+    for shift_type in sorted(shift_demand):
+        demand = shift_demand[shift_type]
+        eligible = shift_eligible.get(shift_type, [])
+        if not eligible:
+            # already errored above (no eligible clinicians); skip this row
+            continue
+        cap = sum(clinician_max.get(cid, 0) for cid in eligible)
+        lines.append("  " + line(shift_type, demand, cap, len(eligible)))
+        headroom = cap - demand
+        if headroom < 0:
+            errors.append(
+                f"{shift_type} demand ({demand}) exceeds combined max_shifts "
+                f"of eligible doctors ({cap}). No solver can cover this."
+            )
+        elif headroom <= tight_threshold(demand):
+            warnings.append(
+                f"{shift_type} is tight: {demand} shifts needed, {cap} capacity "
+                f"(headroom {headroom}). One lock or vacation may make it infeasible."
+            )
+
+    if shift_weekend_demand:
+        lines.append("Weekend coverage:")
+        for shift_type in sorted(shift_weekend_demand):
+            demand = shift_weekend_demand[shift_type]
+            eligible = shift_eligible.get(shift_type, [])
+            if not eligible:
+                continue
+            cap = sum(clinician_weekend_max.get(cid, 0) for cid in eligible)
+            lines.append("  " + line(shift_type, demand, cap, len(eligible)))
+            headroom = cap - demand
+            if headroom < 0:
+                errors.append(
+                    f"{shift_type} weekend demand ({demand}) exceeds combined "
+                    f"max_weekend_shifts of eligible doctors ({cap})."
+                )
+            elif headroom <= 2:
+                warnings.append(
+                    f"{shift_type} weekend is tight: {demand} shifts, {cap} capacity "
+                    f"(headroom {headroom})."
+                )
+
+    return lines
+
+
+def report(errors: list[str], warnings: list[str], summary: list[str] | None = None) -> int:
+    if summary:
+        for line in summary:
+            print(line)
+        print()
     if errors:
         print("Data check found problems:")
         for error in errors:

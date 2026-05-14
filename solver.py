@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -85,13 +86,44 @@ def load_config(path: Path) -> dict:
         return json.load(f)
 
 
+def slugify(text: str) -> str:
+    """Derive a stable, lowercase, alphanumeric+underscore key from a name.
+    Used so users can leave clinician_id blank in clinicians.csv and have it
+    derived from the name field, and so they can type names directly in
+    requests.csv / history.csv."""
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
+
+def resolve_clinician_key(value: str, clinicians: dict[str, dict[str, str]]) -> str:
+    """Map a request/history value to a canonical clinician_id. Matches
+    direct ID first, then a slug of the value (so 'Alice Smith' resolves to
+    'alice_smith'). Falls through unchanged so unknown-clinician errors
+    still fire downstream."""
+    value = value.strip()
+    if not value or value in clinicians:
+        return value
+    slug = slugify(value)
+    if slug in clinicians:
+        return slug
+    return value
+
+
 def load_clinicians(path: Path) -> dict[str, dict[str, str]]:
     rows = read_csv(path)
     clinicians: dict[str, dict[str, str]] = {}
     for row in rows:
-        clinician_id = row["clinician_id"].strip()
+        clinician_id = row.get("clinician_id", "").strip()
+        name = row.get("name", "").strip()
         if not clinician_id:
-            raise ValueError(f"Missing clinician_id in {path}")
+            if not name:
+                raise ValueError(f"Row in {path} has no clinician_id and no name.")
+            clinician_id = slugify(name)
+            if not clinician_id:
+                raise ValueError(
+                    f"Could not derive a clinician_id from name {name!r} in {path}. "
+                    "Fill in clinician_id explicitly."
+                )
+            row["clinician_id"] = clinician_id
         if clinician_id in clinicians:
             raise ValueError(f"Duplicate clinician_id {clinician_id!r}")
         if parse_bool(row.get("active", "1")):
@@ -113,15 +145,18 @@ def load_coverage(path: Path) -> list[CoverageRow]:
     return rows
 
 
-def load_requests(path: Path) -> list[RequestRow]:
+def load_requests(
+    path: Path, clinicians: dict[str, dict[str, str]]
+) -> list[RequestRow]:
     requests = []
     for row in read_csv(path):
         raw_shift = row.get("shift_type", "").strip().upper()
         hard_value = row.get("hard", "1").strip()
+        clinician_id = resolve_clinician_key(row["clinician_id"], clinicians)
         requests.append(
             RequestRow(
                 request_id=row["request_id"].strip(),
-                clinician_id=row["clinician_id"].strip(),
+                clinician_id=clinician_id,
                 start_date=parse_date(row["start_date"]),
                 end_date=parse_date(row["end_date"]),
                 request_type=row["request_type"].strip().lower(),
@@ -133,13 +168,15 @@ def load_requests(path: Path) -> list[RequestRow]:
     return requests
 
 
-def load_history(path: Path) -> tuple[Counter[str], Counter[str]]:
+def load_history(
+    path: Path, clinicians: dict[str, dict[str, str]]
+) -> tuple[Counter[str], Counter[str]]:
     total = Counter()
     weekend = Counter()
     if not path.exists():
         return total, weekend
     for row in read_csv(path):
-        clinician_id = row["clinician_id"].strip()
+        clinician_id = resolve_clinician_key(row["clinician_id"], clinicians)
         day = parse_date(row["date"])
         total[clinician_id] += 1
         if is_weekend(day):
@@ -244,6 +281,24 @@ def write_html_schedule(
                 if label not in labels:
                     labels.append(label)
 
+    # Per-clinician totals for the right-side summary columns.
+    totals: dict[str, int] = defaultdict(int)
+    weekend_totals: dict[str, int] = defaultdict(int)
+    for (d, cid), shifts in assignment_map.items():
+        totals[cid] += len(shifts)
+        if is_weekend(d):
+            weekend_totals[cid] += len(shifts)
+
+    # Soft requests the solver couldn't honor — surfaced in the Notes block.
+    soft_violations: list[tuple[RequestRow, date, str]] = []
+    for r in requests:
+        if r.hard:
+            continue
+        for d in dates_between(r.start_date, r.end_date):
+            for shift in assignment_map.get((d, r.clinician_id), []):
+                if r.shift_type is None or r.shift_type == shift:
+                    soft_violations.append((r, d, shift))
+
     # Shift types actually present in this schedule, in display order.
     shift_types = sorted({c.shift_type for c in coverage})
 
@@ -338,6 +393,49 @@ def write_html_schedule(
     }
     .gcell.weekend { background: #fbf7ea; }
     .gcell.empty { color: #c8cfd6; }
+
+    .gh.totals { background: var(--panel-soft); }
+    .gtotal {
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--rule-2);
+      border-left: 1px solid var(--rule);
+      background: #faf7ee;
+      color: var(--ink);
+      font-weight: 700;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      position: sticky;
+      z-index: 2;
+    }
+    .gtotal.col-total { right: 80px; }
+    .gtotal.col-weekend { right: 0; }
+    .gtotal.over { color: #963c2f; }
+    .gtotal.under { color: #8a5a12; }
+    .gtotal .target { color: var(--muted); font-weight: 600; }
+
+    .schedule-notes {
+      margin: 20px 0 0;
+      padding: 16px 20px;
+      background: var(--panel-soft);
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+    }
+    .schedule-notes h2 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    .schedule-notes ul {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .schedule-notes li { margin-bottom: 4px; }
+    .schedule-notes li em { color: var(--muted); font-style: normal; }
 """
         + shift_css
         + """
@@ -382,6 +480,8 @@ def write_html_schedule(
     for d in all_dates:
         weekend_cls = " weekend" if is_weekend(d) else ""
         header_html += f'<div class="gh{weekend_cls}">{d.strftime("%a %-d")}</div>\n'
+    header_html += '<div class="gh totals">Total</div>\n'
+    header_html += '<div class="gh totals">Weekend</div>\n'
 
     # Clinician rows.
     rows_html = ""
@@ -406,6 +506,32 @@ def write_html_schedule(
             else:
                 rows_html += f'<div class="gcell{weekend_cls} empty">&middot;</div>\n'
 
+        # Right-side totals for this clinician.
+        target = parse_int(clinicians[cid].get("target_shifts", ""), 0)
+        weekend_target = parse_int(clinicians[cid].get("target_weekend_shifts", ""), 0)
+        total = totals[cid]
+        weekend = weekend_totals[cid]
+
+        total_cls = "gtotal col-total"
+        if target and total > target:
+            total_cls += " over"
+        elif target and total < target:
+            total_cls += " under"
+        total_inner = (
+            f'{total}<span class="target"> / {target}</span>' if target else f'{total}'
+        )
+        rows_html += f'<div class="{total_cls}">{total_inner}</div>\n'
+
+        weekend_cls = "gtotal col-weekend"
+        if weekend_target and weekend > weekend_target:
+            weekend_cls += " over"
+        weekend_inner = (
+            f'{weekend}<span class="target"> / {weekend_target}</span>'
+            if weekend_target
+            else f'{weekend}'
+        )
+        rows_html += f'<div class="{weekend_cls}">{weekend_inner}</div>\n'
+
     # Legend — one entry per shift type actually used, then VAC.
     legend_items = ""
     for st in shift_types:
@@ -415,6 +541,27 @@ def write_html_schedule(
         )
     legend_items += (
         '<span class="lg"><span class="swatch vac"></span> Vacation / hard block</span>\n'
+    )
+
+    # Notes block: only soft-request violations. Hard-request honoring is
+    # implicit (the solver couldn't have run otherwise).
+    notes_items = ""
+    for r, d, shift in soft_violations:
+        name = clinicians.get(r.clinician_id, {}).get("name", r.clinician_id)
+        when = d.strftime("%a %b %-d")
+        type_label = r.request_type.replace("_", " ")
+        note_suffix = f" <em>{r.note}</em>" if r.note else ""
+        notes_items += (
+            f"<li>{name} — {type_label} on {when} not honored; "
+            f"covering {shift}.{note_suffix}</li>\n"
+        )
+    notes_html = (
+        f'<section class="schedule-notes">\n'
+        f"  <h2>Notes</h2>\n"
+        f"  <ul>{notes_items}</ul>\n"
+        f"</section>"
+        if notes_items
+        else ""
     )
 
     start_date_str = all_dates[0].strftime("%B %-d, %Y")
@@ -437,12 +584,14 @@ def write_html_schedule(
 
     <div class="grid-frame">
       <div class="grid-frame-scroll">
-        <div class="grid-schedule" style="grid-template-columns: 120px repeat({num_days}, minmax(60px, 1fr));">
+        <div class="grid-schedule" style="grid-template-columns: 120px repeat({num_days}, minmax(60px, 1fr)) 80px 80px;">
           {header_html}
           {rows_html}
         </div>
       </div>
     </div>
+
+    {notes_html}
 
     <div class="grid-legend">
       {legend_items}
@@ -471,8 +620,8 @@ def solve(config_path: Path, verbose: bool = False) -> int:
 
     clinicians = load_clinicians(input_dir / "clinicians.csv")
     coverage = load_coverage(input_dir / "coverage.csv")
-    requests = load_requests(input_dir / "requests.csv")
-    history_total, history_weekend = load_history(input_dir / "history.csv")
+    requests = load_requests(input_dir / "requests.csv", clinicians)
+    history_total, history_weekend = load_history(input_dir / "history.csv", clinicians)
 
     if not clinicians:
         raise ValueError("No active clinicians found.")
@@ -553,10 +702,15 @@ def solve(config_path: Path, verbose: bool = False) -> int:
             day_assigned[(day, clinician_id)] = var
 
     # HARD RULE 3 and SOFT PREFERENCE 1:
-    # Honor hard requests, and try to honor soft requests.
+    # Honor hard requests, try to honor soft requests, and pin locks.
     #
-    # hard=1 in requests.csv means the assignment is blocked.
-    # hard=0 means the solver may assign the clinician, but pays a penalty.
+    # request_type=lock means the clinician MUST cover that (date, shift_type)
+    # row. shift_type is required on locks — pinning to "anything that day"
+    # isn't meaningful. Locks are always hard.
+    #
+    # Otherwise:
+    # - hard=1 means the assignment is blocked.
+    # - hard=0 means the solver may assign the clinician, but pays a penalty.
     objective_terms = []
     soft_request_weight = parse_int(str(weights.get("soft_request_violation", 25)))
     for request in requests:
@@ -565,14 +719,30 @@ def solve(config_path: Path, verbose: bool = False) -> int:
                 f"Request {request.request_id!r} references unknown clinician "
                 f"{request.clinician_id!r}."
             )
+        if request.request_type == "lock" and request.shift_type is None:
+            raise ValueError(
+                f"Lock request {request.request_id!r} must set shift_type."
+            )
+        matched_any = False
         for cov_id, cov in enumerate(coverage):
             if not request_matches(request, cov.date, cov.shift_type):
                 continue
+            matched_any = True
             var = x[(cov_id, request.clinician_id)]
-            if request.hard:
+            if request.request_type == "lock":
+                model.Add(var == 1)
+            elif request.hard:
                 model.Add(var == 0)
             else:
                 objective_terms.append(soft_request_weight * var)
+        if request.request_type == "lock" and not matched_any:
+            raise ValueError(
+                f"Lock request {request.request_id!r} did not match any "
+                f"coverage row for {request.clinician_id} on "
+                f"{request.start_date}..{request.end_date} "
+                f"shift_type={request.shift_type}. Check the date and shift_type "
+                "against coverage.csv."
+            )
 
     all_dates = sorted(coverage_by_date)
 

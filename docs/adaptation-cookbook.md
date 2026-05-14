@@ -31,9 +31,9 @@ date,shift_type,required_count
 **`clinicians.csv`** — add a new column `can_night`. Put `1` next to every clinician eligible for NIGHT, `0` for the rest:
 
 ```csv
-clinician_id,name,active,fte,can_or,can_ob,can_night,target_shifts,max_shifts,target_weekend_shifts,max_weekend_shifts,min_days_between_assignments
-cary,M. Cary,1,1.0,1,1,1,5,6,2,3,1
-fox,A. Fox,1,1.0,1,1,0,5,6,2,3,1
+clinician_id,name,active,can_or,can_ob,can_night,target_shifts,max_shifts,target_weekend_shifts,max_weekend_shifts,min_days_between_assignments
+cary,M. Cary,1,1,1,1,5,6,2,3,1
+fox,A. Fox,1,1,1,0,5,6,2,3,1
 ...
 ```
 
@@ -59,59 +59,36 @@ If you get `No feasible schedule found.` — too few clinicians have `can_night=
 
 ---
 
-## 2. Add locked assignments (pin a person to a specific shift)
+## 2. Lock a clinician to a specific shift (already built in)
 
-Sometimes you want to lock in: "Cary takes Friday June 5 OR no matter what." Maybe Cary asked for it, maybe it's a teaching obligation, maybe it's already published.
+"Cary takes Friday June 5 OR no matter what." Maybe Cary asked for it, maybe it's a teaching obligation, maybe it's already published. No code change needed — locks are a request type.
 
 ### CSV changes
 
-Create a new file `data/my_data/locked_assignments.csv`:
+Add a row to `requests.csv` with `request_type=lock` and the shift named:
 
 ```csv
-date,shift_type,clinician_id
-2026-06-05,OR,cary
-2026-06-12,OB,fox
+request_id,clinician_id,start_date,end_date,request_type,hard,shift_type,note
+l1,cary,2026-06-05,2026-06-05,lock,1,OR,Teaching block
+l2,fox,2026-06-12,2026-06-12,lock,1,OB,Already published
 ```
+
+`shift_type` is required on locks; `hard` is ignored (locks are always hard). The date range can be a single day or a range — a range will lock that clinician onto every coverage row of `shift_type` in the window.
 
 ### Code changes
 
-Add a small block to `solver.py`. The natural place is **after the `# HARD RULE 2` (eligibility) block and before the `coverage_by_date` / `day_assigned` setup** — search for those identifiers in the file. Roughly:
-
-```python
-# HARD RULE: locked assignments.
-# If a row exists in locked_assignments.csv, pin that clinician to that
-# exact shift on that exact date.
-locked_path = input_dir / "locked_assignments.csv"
-if locked_path.exists():
-    with locked_path.open(newline="", encoding="utf-8-sig") as f:
-        for row in csv.DictReader(f):
-            target_date = date.fromisoformat(row["date"])
-            target_shift = row["shift_type"].strip().upper()
-            target_clinician = row["clinician_id"].strip()
-            if target_clinician not in clinicians:
-                raise ValueError(
-                    f"Locked assignment references unknown clinician {target_clinician!r}"
-                )
-            for cov_id, cov in enumerate(coverage):
-                if cov.date == target_date and cov.shift_type == target_shift:
-                    model.Add(x[(cov_id, target_clinician)] == 1)
-```
-
-The agent prompt should be: *"Add a hard rule that pins clinicians from `locked_assignments.csv` in the configured input directory to the exact (date, shift_type) row. Read it like the existing CSV readers in solver.py."*
+None.
 
 ### How to test
-
-Re-run the configured schedule and check the configured CSV/HTML output:
 
 ```bash
 .venv/bin/python scripts/run_my_schedule.py
 ```
 
-- The locked rows must appear exactly as specified.
+- The locked rows must appear exactly as specified in the HTML/CSV output.
 - Total counts may shift slightly (the locked person now has one assignment "spent" in a specific slot).
-- If you locked something the rules forbid (e.g. on a vacation date, or for a clinician who has `can_or=0`), the model becomes infeasible.
-
-If infeasible: remove the locked row that contradicts a hard rule. The error doesn't pinpoint which one — bisect by commenting out half the locked rows and re-solving.
+- If you locked something the rules forbid (vacation overlap, ineligible shift, two locks for the same slot), the solver reports `No feasible schedule found.` — remove the conflicting lock and re-run.
+- If the lock's date or shift_type doesn't match a row in `coverage.csv`, the solver raises `Lock request 'X' did not match any coverage row...` — fix the typo or add the coverage row.
 
 ---
 

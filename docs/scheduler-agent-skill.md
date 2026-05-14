@@ -41,7 +41,7 @@ Fill in defaults for anything they don't volunteer. Many users will give you a o
 
 After the first real month is configured and solved, the user should not start over with the sample data. Treat the next month as a data refresh:
 
-1. Run `scripts/start_next_month.py --year <year> --month <month>`. It moves the configured prior output into `history.csv`, regenerates `coverage.csv`, and updates the config to write a dated output file.
+1. Run `scripts/start_next_month.py` (it infers the next month from the configured output filename; pass `--year <year> --month <month>` if you need a specific month). It moves the configured prior output into `history.csv`, regenerates `coverage.csv`, and updates the config to write a dated output file. The first line of output names the month chosen — confirm with the user before continuing.
 2. Replace or update `requests.csv` with the new vacation and no-call requests.
 3. Adjust `clinicians.csv` only for roster, eligibility, target, or max changes.
 4. Run `scripts/run_my_schedule.py`. It checks the CSVs first, then solves and opens the HTML output.
