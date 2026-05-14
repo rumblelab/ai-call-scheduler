@@ -117,7 +117,11 @@ Use the first-time loop when the user is setting up the repo or changing the sol
    - **Coverage pattern** — which shifts run on which days. Drives `shift_pattern.csv`.
    - **Vacation / no-call requests for the solve period** — even if the answer is "nobody is out this month," you must explicitly ask. Chiefs routinely forget to volunteer this; if you skip the ask, the solver assumes everyone is fully available and the chief will catch the problem only after seeing someone scheduled on their kid's birthday. Don't make them re-solve.
 
-   Other things you'll pick up over the conversation as they come up, no need to interview for them: the time window (one month, three months, a year), what fairness means to them (totals, weekends, holidays, recent burden), and whether they prefer display names or short IDs.
+   **One more thing — optional, but worth offering on the first solve:**
+
+   - **Recent call history.** Last month or two of who covered what. Most chiefs have it sitting in a spreadsheet, an old PDF, or an email — but won't volunteer it. If you don't ask, the new schedule is "fair" against nothing, and the person who covered the last three weekends in a row gets stacked again. Offer it in plain language: *"if you have the last month or two of call somewhere — spreadsheet, screenshot, PDF — send it over and I'll use it as a fairness baseline so we don't double up on whoever covered last month. If not, no problem, we'll start fresh."* When they send it, translate it into `history.csv` (date, clinician_id, shift_type rows) — same pattern as turning messy vacation emails into `requests.csv`. From the second solve forward, `scripts/start_next_month.py` keeps history current automatically.
+
+   Other things you'll pick up over the conversation as they come up, no need to interview for them: the time window (one month, three months, a year), what fairness means to them (totals, weekends, holidays), and whether they prefer display names or short IDs.
 
    Once you have a coverage pattern, write it to `data/my_data/shift_pattern.csv` (rows of `shift_type,weekday_mask,required_count` where `weekday_mask` is 7 characters Mon–Sun, e.g. `1111100` weekdays only, `0000011` weekends only) and run the generator:
    `.venv/bin/python scripts/generate_coverage.py --year 2026 --month 7`.
