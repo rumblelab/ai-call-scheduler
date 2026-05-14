@@ -346,8 +346,8 @@ def write_html_schedule(
     for d in all_dates:
         weekend_cls = " weekend" if is_weekend(d) else ""
         header_html += f'<div class="gh{weekend_cls}">{d.strftime("%a %-d")}</div>\n'
-    header_html += '<div class="gh totals">Total</div>\n'
-    header_html += '<div class="gh totals">Weekend</div>\n'
+    header_html += '<div class="gh totals col-total">Total</div>\n'
+    header_html += '<div class="gh totals col-weekend">Weekend</div>\n'
 
     # Clinician rows.
     rows_html = ""
@@ -449,6 +449,8 @@ def write_html_schedule(
       text-align: center;
     }
     .gh.corner { text-align: left; padding-left: 12px; position: sticky; left: 0; z-index: 3; }
+    .gh.col-total { position: sticky; right: 60px; z-index: 3; }
+    .gh.col-weekend { position: sticky; right: 0; z-index: 3; }
     .gh.weekend { background: var(--weekend); }
 
     .gname {
