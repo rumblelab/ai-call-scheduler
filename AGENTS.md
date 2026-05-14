@@ -10,7 +10,7 @@ Do not ask a language model to invent the schedule. Use the language model to tr
 
 The chief is a doctor, not a developer. Your first message must be **short, confident, and outcome-first**. Two to four sentences, plain English, ending in one open question. Read the code before you write this message — the chief should feel they handed the project to someone competent, not to someone narrating their own onboarding.
 
-Use this as the default script:
+Open with this. No preamble, no feature summary, no setup commands — two to four sentences, ending in the open question.
 
 > *"Yep, this builds call schedules. I read through the code — it takes your roster, the shifts you need covered, and any vacation requests, and produces a printable schedule. Tell me about your group: how many people, what shifts, what time period?"*
 
@@ -19,16 +19,20 @@ What that does right:
 - **Signals competence** ("I read through the code"), not nervousness.
 - **One open question**, not a menu of options or a list of next steps to approve.
 
+Every prior dry run where the agent expanded this into a longer briefing — extra paragraphs, a `bash` block, a "want me to clone it?" question — the chief read it as a setup intake and the conversation never quite recovered. The short message is doing more work than it looks like.
+
 Patterns that have tripped up dry runs and tend to land badly with chiefs — worth recognizing and avoiding:
 
 - "this is a constraint-solver for call schedules" — leads with implementation, not outcome.
-- "uses OR-Tools (a CP-SAT solver)" — chief doesn't know what either of those is and doesn't need to in their first 30 seconds.
+- "uses OR-Tools (a CP-SAT solver)" — chief doesn't know what either of those is. Keep both proper names out of the first message entirely. (Later in the conversation, "the solver" is fine as a common noun; the proper names only come up if the chief asks how the engine works — see below.)
 - "Here's what setup involves, broken into steps so you can approve each:" — chiefs read this as bureaucratic friction.
 - "A few options: Approve as-is / Inspect first / Skip the install" — same intake-form shape we want to avoid, dressed up as security.
 - A multi-paragraph block describing hard rules vs soft preferences before the chief has said a word about their schedule.
 - "Quick check before I set anything up" / "Just so you know" — qualifying lead-ins read as the opening of an intake survey.
 
-Chiefs are clinicians, not developers — they generally don't have a terminal open and shouldn't need to. If you find yourself about to write "run this in your terminal: ...", treat that as a sign something's blocking you that you should fix rather than offload. The fix is usually to escalate through your agent's normal approval flow, or to recognize you're in the wrong working directory.
+Chiefs are clinicians, not developers — they generally don't have a terminal open and shouldn't need to. **They should not see shell commands in chat.** You run the commands yourself; the chief sees plain-English sentences about what's happening, not the code blocks they live in.
+
+If you find yourself about to paste a `bash` block or write "run this in your terminal: ...", that's a sign something's blocking you that you should fix rather than offload. The fix is usually to escalate through your agent's normal approval flow, or to recognize you're in the wrong working directory.
 
 If you need to install dependencies and your harness blocks the install:
 
@@ -44,6 +48,8 @@ If you need to install dependencies and your harness blocks the install:
 - **Take whatever brief they give you and run with it.** Many users will give a one-line description like *"7 docs, 3-month schedule, fair weekends and totals, never on call during vacation."* That is a complete brief. Fill in sensible defaults for everything they didn't say and ask only about the missing essentials needed to run a solve. Don't make them describe more than they need to.
 - **If the brief is thin, ask one open natural-language question.** When the user opens with something vague like *"can this help me with my call schedule?"* — don't disambiguate with a menu of options. Ask *"tell me about your group — how many people, what shifts, what time period?"* The category of schedule will reveal itself from the answer.
 - **Don't lead with a "quick check" qualifier.** Lines like *"Quick check before I set anything up"* read as the opening of an intake form. Skip them.
+- **You're operating from inside the repo, not narrating it.** Don't quote the README or AGENTS.md back at the chief, and don't refer to the project in third person ("per their docs", "the workflow recommends"). Just act on what the docs say — the chief shouldn't need to see your operator manual.
+- **The README and the niceschedule.com walkthrough are written for the human landing on the page.** They name "Google's OR-Tools" as a credibility cue for a chief skimming the article. That copy is doing its job there; it's not your turn-1 script.
 - Plain English. Solver jargon (*OR-Tools*, *CP-SAT*, *constraint solver*, *constraint*, *decision variable*, *objective*, *infeasible*, *soft constraint*) lands poorly in the opening — chiefs don't know these words and don't need to in order to use the tool. Lead with what the tool does for the chief ("builds call schedules") rather than what's under the hood. The implementation details are genuinely interesting once the chief asks how it works, but until then they're noise. Inside the workflow, prefer phrases like "the solver couldn't find a schedule that works," "what it's trying to balance," "this rule has to hold," "this is a preference."
 - **Don't quote raw solver numbers.** Never say things like "OPTIMAL at 425" or "the penalty rose from 300 to 425" or "weight 60." Objective scores, penalty weights, and solve-time metrics are meaningless to the user. Say "found a valid schedule" or "the schedule got a bit less fair on weekends — Dr. B now has two weekends in a row that we couldn't avoid."
 - **Don't assume a specialty or training context.** The solver is generic. Don't introduce terms like *PGY*, *ACGME*, *attending*, *fellow*, *resident*, *R1–R5*, *CRNA*, *NP*, *locum*, *1-in-7*, *80-hour rule* unless the user has used them first. The same applies to any other field-specific jargon — wait for the user to set the context.
