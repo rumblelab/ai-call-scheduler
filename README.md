@@ -33,7 +33,7 @@ Status: OPTIMAL
 Wrote 28 assignments to output/sample_schedule.csv
 ```
 
-Then open [`output/sample_schedule.html`](output/sample_schedule.html) in a browser to see the printable grid. That HTML view is the holy-shit moment — 28 assignments, every hard rule respected, six clinicians fairly distributed, ready to print.
+Then open [`output/sample_schedule.html`](output/sample_schedule.html) in a browser to see the printable grid: 28 assignments, every hard rule respected, six clinicians fairly distributed, ready to print.
 
 ## What v1 handles
 

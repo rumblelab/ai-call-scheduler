@@ -5,14 +5,14 @@ Helper for the NiceSchedule AI tutorial. The solver needs a coverage row for
 every shift it has to staff; typing them by hand is tedious and error-prone.
 This script writes a full month of rows using a simple repeating pattern.
 
-The default pattern matches the sample data (one OR + one OB every day) so the
-output is drop-in compatible with the sample clinicians.csv. Add new shift
-types either by editing the SHIFT_PATTERN below, or by handing your agent a
-description of the pattern you want and asking it to rewrite this file.
+The default pattern matches the sample data (one OR + one OB every day). Add
+new shift types either by editing the SHIFT_PATTERN below, or by handing your
+agent a description of the pattern you want and asking it to rewrite this file.
 
 Examples:
 
     # Default: every day needs 1 OR and 1 OB.
+    # Run after creating data/my_data from data/template.
     python scripts/generate_coverage.py --year 2026 --month 7
 
     # Custom path:
@@ -31,7 +31,7 @@ from pathlib import Path
 # (shift_type, required_count, applies_on_weekend, applies_on_weekday)
 #
 # To add a third shift type (e.g. weekend-only BACKUP), append a row here and
-# make sure data/sample/clinicians.csv has a matching `can_backup` column.
+# make sure clinicians.csv has a matching `can_backup` column.
 # Otherwise the solver will refuse to run with:
 #     Missing eligibility column 'can_backup' for shift type 'BACKUP'.
 SHIFT_PATTERN: list[tuple[str, int, bool, bool]] = [
@@ -84,7 +84,7 @@ def main() -> int:
         "--out",
         type=Path,
         default=None,
-        help="Output path. Defaults to data/sample/coverage_<year>_<month>.csv.",
+        help="Output path. Defaults to data/my_data/coverage.csv.",
     )
     args = parser.parse_args()
 
@@ -94,9 +94,13 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent
     output_path = args.out
     if output_path is None:
-        output_path = (
-            repo_root / "data" / "sample" / f"coverage_{args.year}_{args.month:02d}.csv"
-        )
+        working_dir = repo_root / "data" / "my_data"
+        if not working_dir.exists():
+            parser.error(
+                "data/my_data does not exist. Create it first with: "
+                "cp -R data/template data/my_data"
+            )
+        output_path = working_dir / "coverage.csv"
     elif not output_path.is_absolute():
         output_path = repo_root / output_path
 
