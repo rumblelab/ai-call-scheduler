@@ -171,18 +171,20 @@ def load_requests(
 
 def load_history(
     path: Path, clinicians: dict[str, dict[str, str]]
-) -> tuple[Counter[str], Counter[str]]:
+) -> tuple[Counter[str], Counter[str], Counter[tuple[str, int]]]:
     total = Counter()
     weekend = Counter()
+    weekday = Counter()
     if not path.exists():
-        return total, weekend
+        return total, weekend, weekday
     for row in read_csv(path):
         clinician_id = resolve_clinician_key(row["clinician_id"], clinicians)
         day = parse_date(row["date"])
         total[clinician_id] += 1
         if is_weekend(day):
             weekend[clinician_id] += 1
-    return total, weekend
+        weekday[(clinician_id, day.weekday())] += 1
+    return total, weekend, weekday
 
 
 def eligibility_column(shift_type: str) -> str:
@@ -642,7 +644,7 @@ def solve(config_path: Path, verbose: bool = False) -> int:
     clinicians = load_clinicians(input_dir / "clinicians.csv")
     coverage = load_coverage(input_dir / "coverage.csv")
     requests = load_requests(input_dir / "requests.csv", clinicians)
-    history_total, history_weekend = load_history(input_dir / "history.csv", clinicians)
+    history_total, history_weekend, history_weekday = load_history(input_dir / "history.csv", clinicians)
 
     if not clinicians:
         raise ValueError("No active clinicians found.")
@@ -836,7 +838,27 @@ def solve(config_path: Path, verbose: bool = False) -> int:
         model.Add(total_expr >= min_total)
     objective_terms.append(history_weight * (max_total - min_total))
 
-    # HARD RULE 5 and SOFT PREFERENCE 5:
+    # SOFT PREFERENCE 5:
+    # Spread weekday patterns across months. Penalize giving a clinician a
+    # weekday they've already covered a lot in history.csv. Pulls apart
+    # stagnation patterns like "Cary always gets Mondays" over time. No-op
+    # on a first-month solve (history_weekday is empty). sample_rules.json
+    # sets this weight to 0 so the article's sample output stays stable;
+    # my_rules.template.json sets 20 so real groups get the term active.
+    weekday_repeat_weight = parse_int(str(weights.get("weekday_repeat", 20)))
+    for clinician_id in clinician_ids:
+        for weekday in range(7):
+            prior = history_weekday[(clinician_id, weekday)]
+            if prior == 0:
+                continue
+            same_weekday_now = sum(
+                x[(cov_id, clinician_id)]
+                for cov_id, cov in enumerate(coverage)
+                if cov.date.weekday() == weekday
+            )
+            objective_terms.append(weekday_repeat_weight * prior * same_weekday_now)
+
+    # HARD RULE 5 and SOFT PREFERENCE 6:
     # Enforce minimum rest, then prefer more spacing when possible.
     #
     # min_days_between_assignments is hard. If min gap is 1, someone cannot work

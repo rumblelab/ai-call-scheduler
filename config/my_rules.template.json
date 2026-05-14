@@ -9,6 +9,7 @@
       "history_balance": 40,
       "weekend_deviation": 35,
       "soft_request_violation": 25,
+      "weekday_repeat": 20,
       "rest_spacing": 5
     }
   }

@@ -50,6 +50,7 @@ Soft preferences (tunable in `config/sample_rules.json`):
 
 - Land near each clinician's `target_shifts` and `target_weekend_shifts`.
 - Balance total burden against prior `history.csv`.
+- Rotate weekday patterns over time so the same person doesn't keep landing on Mondays.
 - Honor soft (`hard=0`) requests when possible.
 - Prefer more rest spacing beyond the hard minimum.
 

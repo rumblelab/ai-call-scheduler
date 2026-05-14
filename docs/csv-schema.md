@@ -127,6 +127,7 @@ These are the relative importances of the soft objectives. Higher number = the s
 | `history_balance` | 40 | Penalty when (history + current) totals are imbalanced across clinicians. Pulls down whoever covered the most recent months. |
 | `weekend_deviation` | 35 | Penalty per weekend shift over or under each clinician's `target_weekend_shifts`. Weekend fairness is tracked separately from total fairness. |
 | `soft_request_violation` | 25 | Penalty when a `hard=0` request is violated. Set higher than `target_deviation` if you want soft requests to almost always be honored even at the cost of fairness. |
+| `weekday_repeat` | 20 (0 in sample) | Penalty per historical `(clinician, weekday)` per new assignment on that weekday. Pulls apart stagnation patterns like "Cary always gets Mondays" over time. No-op on a first-month solve (history is empty). `sample_rules.json` sets this to `0` so the article's sample schedule stays stable; `my_rules.template.json` sets `20` so real groups get the term active. |
 | `rest_spacing` | 5 | Small penalty whenever two assignments fall closer than `preferred_days_between_assignments`. The closer the pair, the higher the penalty. Low weight by design — the hard rest gap is what guarantees rest; this just gently spreads things out beyond the floor. |
 
 ### Tuning the weights
@@ -137,5 +138,6 @@ The shape of the schedule changes when these ratios change. A few common moves:
 - **Weekend fairness keeps slipping** → raise `weekend_deviation` to match or exceed `target_deviation`.
 - **Soft requests keep getting trampled** → raise `soft_request_violation` to 50 or above.
 - **People keep getting double-booked tight even though rules say min 1 day** → raise `rest_spacing` to 20 or 30. Note: this is a soft preference; it cannot create rest the hard rules don't allow.
+- **The same person keeps getting the same weekday month after month** → raise `weekday_repeat` to 40 or 60. The penalty compounds with history depth, so as history grows you may want to ease it back down so this one term doesn't dominate.
 
 Always change one weight at a time. Solve. Look at the output. Compare to before. Tuning is iterative; there is no "correct" set of numbers — only the set that produces schedules your group accepts.
