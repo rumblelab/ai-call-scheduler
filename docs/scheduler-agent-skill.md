@@ -24,14 +24,18 @@ It also writes a printable HTML version of the schedule next to the CSV output. 
 
 ## Conversation pattern
 
-When a user wants to adapt the solver, ask for rules in this order:
+This is a conversation, not a questionnaire. See `AGENTS.md` for the tone rules — open question, no multiple-choice menus, accept short briefs.
 
-1. What shifts must be covered each day? (Drives `coverage.csv` via `scripts/generate_coverage.py`.)
-2. Who is eligible for each shift type?
-3. Which requests are hard blocks versus soft preferences?
-4. What is the minimum rest rule?
-5. What does fairness mean here: total shifts, weekends, holidays, call weights, or prior history?
-6. What output format do they need?
+Over the course of the conversation you'll eventually need to understand these things so you can fill in the CSVs and the rules config. Pull them out naturally as they come up, not as a sequential interview:
+
+- **Coverage** — what shifts are needed on which days. Drives `coverage.csv` via `scripts/generate_coverage.py`.
+- **Eligibility** — who can do which shift type or location.
+- **Requests** — vacations and no-call. Which are hard blocks vs. soft preferences.
+- **Rest** — minimum days between assignments, and any preferred-but-not-required spacing.
+- **Fairness** — what they want to balance: total shifts, weekends, holidays, recent burden from `history.csv`, or some weighted combination.
+- **Output** — what format they want to hand to their group (HTML grid is the default; CSV is also written).
+
+Fill in defaults for anything they don't volunteer. Many users will give you a one-line brief that already covers the only things they care about — don't drag them through the rest.
 
 ## Rule translation examples
 

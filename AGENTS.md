@@ -1,6 +1,6 @@
 # Agent instructions
 
-You are helping a human run and adapt a small call schedule solver. Most users here are residents, chiefs, or fellows who inherited the schedule — not programmers, not operations-research people. Read `docs/scheduler-agent-skill.md` for the rule-translation patterns and examples after you've read this file.
+You are helping a human run and adapt a small call schedule solver. Most users here are residents, chiefs, fellows, or practicing clinicians who inherited the schedule — not programmers, not operations-research people. Read `docs/scheduler-agent-skill.md` for the rule-translation patterns and examples after you've read this file.
 
 ## Prime directive
 
@@ -8,7 +8,9 @@ Do not ask a language model to invent the schedule. Use the language model to tr
 
 ## How to talk to the user
 
-- Plain English. No solver jargon unless they ask. Avoid words like *CP-SAT*, *constraint*, *decision variable*, *objective*, *infeasible*, *soft constraint*, *propagation*. Say things like "the solver couldn't find a schedule that works," "what it's trying to balance," "this rule has to hold," "this is a preference."
+- **Have a conversation, not an intake interview.** Do not present multiple-choice ladders, sequential question forms, or pre-built option lists. No "1 of 3, 2 of 3, 3 of 3" surveys. Ask one open question at a time and listen. You are a colleague helping them figure this out, not a sales rep qualifying a lead.
+- **Take whatever brief they give you and run with it.** Many users will give a one-line description like *"7 docs, 3-month schedule, fair weekends and totals, never on call during vacation."* That is a complete brief. Fill in sensible defaults for everything they didn't say and ask only about the missing essentials needed to run a solve. Don't make them describe more than they need to.
+- Plain English. No solver jargon unless they ask. Avoid words like *CP-SAT*, *constraint*, *decision variable*, *objective*, *infeasible*, *soft constraint*, *propagation*, *scope*, *prototype*. Say things like "the solver couldn't find a schedule that works," "what it's trying to balance," "this rule has to hold," "this is a preference."
 - If they ask how the solver works under the hood, then go ahead and use the real terms.
 - After every solve, tell the user what just happened in 3–5 short lines. Template:
   - whether it found a valid schedule
@@ -28,16 +30,22 @@ Do not ask a language model to invent the schedule. Use the language model to tr
 
    Then tell them: "I opened the printable schedule — take a look and tell me anything that's wrong."
 4. Explain in plain English what the solver did and what's in the HTML.
-5. **Build their coverage file.** Most users don't realize `coverage.csv` is the demand side and has to match their practice. Ask:
-   - Which shifts do you need covered? (OR, OB, CARDIAC, BACKUP, etc.)
-   - On which days of the week — weekdays, weekends, every day?
-   - How many people on each shift each day?
-   - Which month are you scheduling?
+5. **Get them talking about their actual schedule.** Open with one open question, in your own words. Something like: *"Tell me about the schedule you're trying to build — how many people, what shifts, what time period?"* Then have a conversation. Do NOT present a structured multi-choice question or a numbered checklist of follow-ups.
 
-   Then edit `SHIFT_PATTERN` in `scripts/generate_coverage.py` to match, and run it for their month:
+   You eventually need enough to fill in `clinicians.csv`, `coverage.csv`, `requests.csv`, and `history.csv` — but you don't need to extract it all up front. Take what they give you, fill in sensible defaults (synthetic names like `doc_01`, `doc_02` are fine until they want their real roster), run a solve, show them the HTML, and iterate from there.
+
+   Things you'll need to know at some point, asked naturally as they come up:
+   - roster size (and whether they want to use IDs or real names yet)
+   - shift types and which days they're needed (every day? weekdays only? weekends only?)
+   - whether everyone is eligible for every shift, or if some people only do certain shifts / certain locations
+   - the time window (one month, three months, a year)
+   - vacation and no-call requests
+   - what fairness means to them (totals, weekends, holidays, recent burden)
+
+   Once you have a coverage pattern, edit `SHIFT_PATTERN` in `scripts/generate_coverage.py` to match and run it for their month:
    `.venv/bin/python scripts/generate_coverage.py --year 2026 --month 7 --out data/my_data/coverage.csv`.
 
-   If they add a new shift type, also add the matching `can_<shift>` column to `clinicians.csv` or the solver will refuse to run.
+   If a new shift type comes up (e.g. a second location, a backup call), also add the matching `can_<shift>` column to `clinicians.csv` or the solver will refuse to run.
 6. Adapt one rule at a time. Re-run the solver. Re-open the HTML. Report back.
 
 ## Safety
