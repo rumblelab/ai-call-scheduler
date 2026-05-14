@@ -121,4 +121,4 @@ History is used for the `history_balance` weight only. It doesn't block; it trie
 
 ## When to ask for help
 
-If you've worked through this list and the solver still won't solve, paste the full error message and the relevant CSV row(s) into your coding agent and ask it to walk the model with you. If the agent is stuck too, email `moultrie@niceschedule.com` with the CSVs (with names replaced by IDs, per the privacy doc) and the error output.
+If you've worked through this list and the solver still won't solve, paste the full error message and the relevant CSV row(s) into your coding agent and ask it to walk the model with you. If the agent is stuck too, email `moultrie@niceschedule.com` with the CSVs and the error output.

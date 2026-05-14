@@ -29,7 +29,7 @@ The repo is a tutorial. Its files are stable artifacts that every future user cl
 **Do not edit these without an explicit ask from the user:**
 
 - `solver.py`
-- `README.md`, `index.md`, `index.html`
+- `README.md`, `index.html`
 - `docs/*.md`
 - `config/sample_rules.json`
 - `data/sample/*.csv`

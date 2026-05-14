@@ -449,7 +449,7 @@ def write_html_schedule(
     </div>
 
     <footer>
-      <div>Generated on {date.today().strftime("%B %-d, %Y")}</div>
+      <div>{start_date_str} &ndash; {end_date_str}</div>
       <div class="watermark">Built with <a href="https://niceschedule.com">NiceSchedule.com</a></div>
     </footer>
   </div>
