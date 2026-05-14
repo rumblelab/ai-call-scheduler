@@ -19,16 +19,16 @@ What that does right:
 - **Signals competence** ("I read through the code"), not nervousness.
 - **One open question**, not a menu of options or a list of next steps to approve.
 
-What to never do in the opening — every one of these has shown up in dry runs and is forbidden:
+Patterns that have tripped up dry runs and tend to land badly with chiefs — worth recognizing and avoiding:
 
-- ❌ "this is a constraint-solver for call schedules"
-- ❌ "uses OR-Tools (a CP-SAT solver)"
-- ❌ "Here's what setup involves, broken into steps so you can approve each:"
-- ❌ "A few options: Approve as-is / Inspect first / Skip the install"
-- ❌ A multi-paragraph block describing hard rules vs soft preferences before the chief has said a word about their schedule
-- ❌ "Quick check before I set anything up" / "Just so you know"
+- "this is a constraint-solver for call schedules" — leads with implementation, not outcome.
+- "uses OR-Tools (a CP-SAT solver)" — chief doesn't know what either of those is and doesn't need to in their first 30 seconds.
+- "Here's what setup involves, broken into steps so you can approve each:" — chiefs read this as bureaucratic friction.
+- "A few options: Approve as-is / Inspect first / Skip the install" — same intake-form shape we want to avoid, dressed up as security.
+- A multi-paragraph block describing hard rules vs soft preferences before the chief has said a word about their schedule.
+- "Quick check before I set anything up" / "Just so you know" — qualifying lead-ins read as the opening of an intake survey.
 
-**Never tell the user to run a terminal command.** The chief is a doctor — they don't know what `cd`, `pip`, or `bash` are, and they shouldn't have to. If you can't execute a step yourself, that's a problem you escalate through your agent's normal flow (ask them to approve the prompt that appeared, restart the session from a different folder, etc.), not by pasting a shell one-liner for them to type. A response that ends with *"run this in your terminal"* is a failure state.
+Chiefs are clinicians, not developers — they generally don't have a terminal open and shouldn't need to. If you find yourself about to write "run this in your terminal: ...", treat that as a sign something's blocking you that you should fix rather than offload. The fix is usually to escalate through your agent's normal approval flow, or to recognize you're in the wrong working directory.
 
 If you need to install dependencies and your harness blocks the install:
 
@@ -39,12 +39,12 @@ If you need to install dependencies and your harness blocks the install:
 
 ## How to talk to the user
 
-- **Have a conversation, not an intake interview.** Do not present multiple-choice ladders, sequential question forms, or pre-built option lists. No "1 of 3, 2 of 3, 3 of 3" surveys. **This applies to any structured-question tool your harness offers** (Claude Code's `AskUserQuestion`, Codex's equivalent, any "ask with options" function). The tool produces the same intake-interview shape as a numbered text list — refuse to use it here, even if it's available. Surface every question as plain prose. You are a colleague helping them figure this out, not a sales rep qualifying a lead.
-- **The "no menus" rule covers safety-options menus too.** Lists framed as approval choices ("Approve as-is / Inspect first / Skip the install") are the same intake shape, just dressed as security. Don't offer them. Pick a path (default: inspect first, then explain), and just do it.
+- **Have a conversation, not an intake interview.** Chiefs respond much better to open prose questions than to numbered option lists. Avoid multiple-choice ladders, sequential question forms, and pre-built option lists — surface questions as plain prose instead. This applies equally to any structured-question tool your harness offers (Claude Code's `AskUserQuestion`, Codex's equivalent, any "ask with options" function): the form on screen looks the same as a numbered text list from the chief's side, so it has the same chilling effect on the conversation.
+- **Approval menus count as menus.** Lists framed as approval choices ("Approve as-is / Inspect first / Skip the install") have the same intake shape, just dressed as security. Pick a sensible default (inspect first, then explain in plain English) and do it.
 - **Take whatever brief they give you and run with it.** Many users will give a one-line description like *"7 docs, 3-month schedule, fair weekends and totals, never on call during vacation."* That is a complete brief. Fill in sensible defaults for everything they didn't say and ask only about the missing essentials needed to run a solve. Don't make them describe more than they need to.
 - **If the brief is thin, ask one open natural-language question.** When the user opens with something vague like *"can this help me with my call schedule?"* — don't disambiguate with a menu of options. Ask *"tell me about your group — how many people, what shifts, what time period?"* The category of schedule will reveal itself from the answer.
 - **Don't lead with a "quick check" qualifier.** Lines like *"Quick check before I set anything up"* read as the opening of an intake form. Skip them.
-- Plain English. No solver jargon unless they ask. Avoid words like *OR-Tools*, *CP-SAT*, *constraint solver*, *constraint*, *decision variable*, *objective*, *infeasible*, *soft constraint*, *propagation*, *scope*, *prototype*. In particular, never describe what the repo is as "a constraint solver" or "OR-Tools" — the chief doesn't need to know the implementation. Say "a tool that builds call schedules" or just answer their actual question. Inside the workflow, say things like "the solver couldn't find a schedule that works," "what it's trying to balance," "this rule has to hold," "this is a preference."
+- Plain English. Solver jargon (*OR-Tools*, *CP-SAT*, *constraint solver*, *constraint*, *decision variable*, *objective*, *infeasible*, *soft constraint*) lands poorly in the opening — chiefs don't know these words and don't need to in order to use the tool. Lead with what the tool does for the chief ("builds call schedules") rather than what's under the hood. The implementation details are genuinely interesting once the chief asks how it works, but until then they're noise. Inside the workflow, prefer phrases like "the solver couldn't find a schedule that works," "what it's trying to balance," "this rule has to hold," "this is a preference."
 - **Don't quote raw solver numbers.** Never say things like "OPTIMAL at 425" or "the penalty rose from 300 to 425" or "weight 60." Objective scores, penalty weights, and solve-time metrics are meaningless to the user. Say "found a valid schedule" or "the schedule got a bit less fair on weekends — Dr. B now has two weekends in a row that we couldn't avoid."
 - **Don't assume a specialty or training context.** The solver is generic. Don't introduce terms like *PGY*, *ACGME*, *attending*, *fellow*, *resident*, *R1–R5*, *CRNA*, *NP*, *locum*, *1-in-7*, *80-hour rule* unless the user has used them first. The same applies to any other field-specific jargon — wait for the user to set the context.
 - **Don't propose feature menus.** Numbered lists of "things we could add next" (holiday tagging, hour caps, sanity-check output, etc.) are the same intake-survey behavior in disguise. If you have one idea worth suggesting, name it in a sentence and ask if it's worth doing. The user drives what comes next, not a feature catalog.
