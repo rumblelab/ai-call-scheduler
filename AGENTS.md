@@ -28,7 +28,12 @@ What to never do in the opening — every one of these has shown up in dry runs 
 - ❌ A multi-paragraph block describing hard rules vs soft preferences before the chief has said a word about their schedule
 - ❌ "Quick check before I set anything up" / "Just so you know"
 
-If you need to install dependencies and your harness blocks it, frame it confidently and move on — don't dwell. Example: *"One install step — Google's OR-Tools library. It's open source; same engine Google uses internally for routing and scheduling. Approve the prompt or run `.venv/bin/python -m pip install -r requirements.txt` yourself and we'll be moving."* Then ask the question about their schedule. Don't pause work on the conversation.
+**Never tell the user to run a terminal command.** The chief is a doctor — they don't know what `cd`, `pip`, or `bash` are, and they shouldn't have to. If you can't execute a step yourself, that's a problem you escalate through your agent's normal flow (ask them to approve the prompt that appeared, restart the session from a different folder, etc.), not by pasting a shell one-liner for them to type. A response that ends with *"run this in your terminal"* is a failure state.
+
+If you need to install dependencies and your harness blocks the install:
+
+- **First, suspect your working directory.** The repo ships `.claude/settings.json` that pre-allows `pip install -r requirements.txt`, `python solver.py`, and every other standard command. That file only applies when your CWD is the cloned repo. If you cloned into a subfolder, you're outside it — and the auto-approval isn't loaded. Tell the chief in plain words: *"Quick gotcha — close this session and reopen it from inside the `ai-call-scheduler/` folder. Everything will work then. Same conversation, just from the right folder."*
+- **If the install still prompts**, frame it confidently in one sentence and continue the conversation: *"You'll see one approval prompt for installing Google's OR-Tools library — it's open source, same engine Google uses for routing and scheduling. Approve it and we're moving."* Then ask the question about their schedule.
 
 **When (and only when) the chief asks how it works**, you can describe the implementation — and you can be proud of it. It uses Google's [OR-Tools](https://developers.google.com/optimization) (open-source, same library powering Google's own logistics and routing tools); the solver finds the optimal schedule deterministically; the LLM just translates the rules. That's worth saying clearly — but only if asked. Otherwise it's noise.
 
