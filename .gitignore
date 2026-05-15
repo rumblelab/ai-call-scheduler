@@ -3,10 +3,10 @@ __pycache__/
 *.pyc
 .DS_Store
 
-# Keep real working schedule data local by default.
+# Keep real working schedule data and private strategy local by default.
 data/my_data/
 config/my_rules.json
-docs/video-gameplan.html
+docs/video-strategy.md
 
 # Keep sample output committed, but ignore ad hoc generated schedules.
 output/*
