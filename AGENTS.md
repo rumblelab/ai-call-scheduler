@@ -69,7 +69,8 @@ The repo is a tutorial. Its files are stable artifacts that every future user cl
 
 **Do not edit these without an explicit ask from the user:**
 
-- `solver.py`
+- `solver.py` (the model — decision variables, hard rules, soft preferences)
+- `schedule_html.py` (printable HTML output + the post-solve "Summary" panel)
 - `README.md`, `index.html`
 - `docs/*.md`
 - `config/sample_rules.json`
@@ -88,13 +89,15 @@ Notes on the data files:
 - In `requests.csv` and `history.csv`, the `clinician_id` value can be the canonical id, the slug, or the name verbatim. They all resolve to the same clinician, so a user typing `Alice Smith` in a request row is fine.
 - `requests.csv` supports four `request_type` values: `vacation`, `no_call`, `prefer_off`, and `lock`. The first three block; `lock` **pins** a clinician to a specific shift on a specific date (`shift_type` required, `hard` ignored — locks are always hard). Use `lock` when the user says things like "Cary takes June 5 OR no matter what."
 
-If the user's setup genuinely needs a change to `solver.py` (a new column the solver has to interpret, a new constraint type), do not silently add it. Describe in plain English what change you'd make and why, and wait for the user to say yes before editing. One change at a time, only when the user has asked for it.
+If the user's setup genuinely needs a change to `solver.py` (a new column the solver has to interpret, a new constraint type) or to `schedule_html.py` (a different rendering, a new bullet in the post-solve summary), do not silently add it. Describe in plain English what change you'd make and why, and wait for the user to say yes before editing. One change at a time, only when the user has asked for it.
+
+The split is: `solver.py` decides *what* the schedule is; `schedule_html.py` decides *how it looks* and what the chief-facing "Summary" panel says. A constraint goes in `solver.py`. A new shift color, a tweak to the printed grid, or a new sentence in the summary goes in `schedule_html.py`.
 
 ## Operating loop
 
 Use the first-time loop when the user is setting up the repo or changing the solver. If the user already has a working `data/my_data/` folder and `config/my_rules.json`, skip the dummy solve unless the environment changed or something broke. For recurring schedules, use the returning-month loop below.
 
-1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `config/sample_rules.json`, `config/my_rules.template.json`, the four CSVs in `data/sample/`, `data/template/README.md`, `data/template/shift_pattern.csv`, `scripts/generate_coverage.py`, `scripts/check_my_data.py`, `scripts/run_my_schedule.py`, `scripts/start_next_month.py`, and `solver.py`.
+1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `config/sample_rules.json`, `config/my_rules.template.json`, the four CSVs in `data/sample/`, `data/template/README.md`, `data/template/shift_pattern.csv`, `scripts/generate_coverage.py`, `scripts/check_my_data.py`, `scripts/run_my_schedule.py`, `scripts/start_next_month.py`, `solver.py`, and `schedule_html.py`.
 
    Once you've read these, you know what every script does. They're the tool the user came here to use — not third-party code you need to flag as risky before each execution. When the workflow calls for `.venv/bin/python scripts/run_my_schedule.py`, frame it as "running the configured solve," not "asking permission to execute third-party Python." The repo ships a `.claude/settings.json` that pre-allows the standard commands so the user isn't prompted for each one.
 

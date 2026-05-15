@@ -1,6 +1,6 @@
 # Troubleshooting
 
-What to do when the solver complains. Every error below is one the v1 solver actually raises — they are quoted from `solver.py` so an agent can grep for them.
+What to do when the solver or data check complains. The messages below come from `solver.py` or the preflight in `scripts/check_my_data.py`, so an agent can grep for them.
 
 The general rule when something breaks: **remove the most recent change first.** Most failures here are introduced by edits to the CSVs, not by the solver itself.
 
@@ -36,7 +36,7 @@ If it actually errors, the usual culprits are:
 
 ## CSV / data errors
 
-These all raise as `ValueError` and stop the solver before it tries to solve.
+These either raise as `ValueError` in the solver or are reported by `scripts/check_my_data.py` before the solve runs.
 
 ### `Missing clinician_id in <path>`
 
@@ -73,6 +73,18 @@ A row in `requests.csv` has a `clinician_id` that doesn't exist in `clinicians.c
 
 Same idea: a row in `history.csv` points to a `clinician_id` that isn't in `clinicians.csv`, or to one whose `active` is `0`. Update the ID, mark the clinician active, or drop the history row.
 
+### `requests.csv row X has unknown request_type 'Y'`
+
+The only supported request types are `vacation`, `no_call`, `prefer_off`, and `lock`. Fix the typo or change the row to one of those values.
+
+### `requests.csv row X starts after it ends`
+
+The `start_date` is later than `end_date`. Swap the dates or fix the typo.
+
+### `requests.csv row X names shift_type 'Y', but coverage.csv has no rows for that shift.`
+
+The request names a shift that is not in the current schedule period. Usually this is a typo (`OBB` instead of `OB`) or coverage was generated before the new shift type was added.
+
 ### `Lock request 'X' must set shift_type.`
 
 A row in `requests.csv` has `request_type=lock` but a blank `shift_type`. Locks pin a clinician to a specific shift on a specific date — they always need the shift named. Fill in `shift_type` (e.g. `OR`).
@@ -80,6 +92,10 @@ A row in `requests.csv` has `request_type=lock` but a blank `shift_type`. Locks 
 ### `Lock request 'X' did not match any coverage row for ...`
 
 The lock points at a date and shift_type that aren't in `coverage.csv`. Usually a typo in the date or the shift name. Open `coverage.csv` and confirm that exact (date, shift_type) row exists. If not, either fix the lock or add the coverage row.
+
+### `coverage.csv repeats YYYY-MM-DD SHIFT on rows ...`
+
+The data check found multiple rows for the same date and shift type. That can be intentional, but most groups should combine them into one row with the right `required_count`; otherwise the solver treats each row as additional demand.
 
 ### `OR demand (X) exceeds combined max_shifts of eligible doctors (Y). No solver can cover this.`
 

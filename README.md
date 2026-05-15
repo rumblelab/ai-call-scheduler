@@ -46,7 +46,8 @@ Hard rules (the solver refuses to violate them):
 5. Minimum rest gap between assignments.
 6. Per-clinician `max_shifts` and `max_weekend_shifts`.
 
-Soft preferences (tunable in `config/sample_rules.json`):
+Soft preferences (tunable in `config/sample_rules.json` for the sample, or
+`config/my_rules.json` once you set up your own schedule):
 
 - Land near each clinician's `target_shifts` and `target_weekend_shifts`.
 - Balance total burden against prior `history.csv`.
@@ -54,7 +55,7 @@ Soft preferences (tunable in `config/sample_rules.json`):
 - Honor soft (`hard=0`) requests when possible.
 - Prefer more rest spacing beyond the hard minimum.
 
-This is a teaching example, not a production scheduler. Real groups also need holiday rotation, partner-vs-non-partner allocation, post-call recovery, locked assignments, and local exceptions. The cookbook below shows how to add them one at a time.
+This is a teaching example, not a production scheduler. Real groups also need holiday rotation, partner-vs-non-partner allocation, post-call recovery, and local exceptions. Locked assignments are already represented as `lock` rows in `requests.csv`; the cookbook below shows how to layer in other rules one at a time.
 
 ## Docs
 
@@ -62,7 +63,7 @@ This is a teaching example, not a production scheduler. Real groups also need ho
 | --- | --- |
 | [`docs/csv-schema.md`](docs/csv-schema.md) | Every column in every input file, plus what each weight does. |
 | [`docs/adaptation-cookbook.md`](docs/adaptation-cookbook.md) | Worked examples: third shift type, locked assignments, weekend pairing. |
-| [`docs/troubleshooting.md`](docs/troubleshooting.md) | Every error the solver can raise and how to fix it. |
+| [`docs/troubleshooting.md`](docs/troubleshooting.md) | Every solver or data-check error and how to fix it. |
 | [`docs/scheduler-agent-skill.md`](docs/scheduler-agent-skill.md) | Hand this to your coding agent before it edits anything. |
 | [`docs/agent-privacy.md`](docs/agent-privacy.md) | What to do (and not do) with real physician data. |
 

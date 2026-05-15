@@ -39,7 +39,7 @@ fox,A. Fox,1,1,1,0,5,6,2,3,1
 
 ### Code changes
 
-None. The solver discovers shift types from `coverage.csv` and resolves the matching `can_<shift>` column automatically — see the block that builds `shift_types` and verifies eligibility columns near the top of `solve()` in `solver.py`. The HTML renderer also picks a stable color for the new shift type automatically (see `SHIFT_PALETTE` and `shift_colors` near the top of `solver.py`).
+None. The solver discovers shift types from `coverage.csv` and resolves the matching `can_<shift>` column automatically — see the block that builds `shift_types` and verifies eligibility columns near the top of `solve()` in `solver.py`. The HTML renderer also picks a stable color for the new shift type automatically (see `SHIFT_PALETTE` and `shift_colors` in `schedule_html.py`).
 
 ### How to test
 

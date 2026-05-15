@@ -20,7 +20,7 @@ The sample solver is intentionally small. It should:
 8. Pull down whoever covered the most recent months (uses `history.csv`).
 9. Prefer more spacing between assignments when the hard rules leave room.
 
-It also writes a printable HTML version of the schedule next to the CSV output. Colors for any shift type (existing or new) are picked automatically from `SHIFT_PALETTE` in `solver.py`.
+It also writes a printable HTML version of the schedule next to the CSV output, plus a chief-facing "Summary" panel beneath the grid (hidden on print) that explains in plain English what the solver did and what was traded. Both the rendering and the summary live in `schedule_html.py`; colors for any shift type (existing or new) are picked automatically from `SHIFT_PALETTE` there.
 
 ## Conversation pattern
 

@@ -103,8 +103,24 @@
     .lg { display: inline-flex; align-items: center; gap: 6px; }
     .swatch { width: 12px; height: 12px; border: 1px solid #ccc; }
 
-    .schedule-notes { margin-top: 24px; padding: 16px; border: 1px solid var(--rule); font-size: 12px; }
-    .schedule-notes h2 { font-size: 11px; font-weight: 900; text-transform: uppercase; margin: 0 0 8px; }
+    .schedule-summary {
+      margin-top: 24px;
+      padding: 14px 18px;
+      border: 1px solid var(--rule);
+      border-left: 3px solid #1a4769;
+      background: #fcfcfa;
+      font-size: 13px;
+    }
+    .schedule-summary h2 {
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 0 0 8px;
+      color: var(--muted);
+    }
+    .schedule-summary ul { margin: 0; padding-left: 18px; }
+    .schedule-summary li { margin: 4px 0; line-height: 1.45; }
 
     /* Branding band lives INSIDE .grid-frame so a chief who tries to crop
        it off the printout has to slice into the schedule box itself. */
@@ -169,7 +185,9 @@
       .gcell { min-height: 20px; padding: 1px; border-width: 0.5pt; }
       .gtotal { padding: 2px; font-size: 8px; position: static; border-width: 0.5pt; border-left-width: 1.2pt; }
       .gh, .gname, .gcell, .gtotal, .gh.weekend, .gcell.weekend { background: white !important; }
-      .schedule-notes { page-break-inside: avoid; border-width: 0.5pt; }
+      /* Summary is a chief-facing review pane — the printout is for the
+         group and stays focused on the grid. */
+      .schedule-summary { display: none; }
       body.print-color .grid-legend { margin: 12pt 0; }
       .grid-watermark {
         padding: 4pt 8pt;
@@ -361,7 +379,12 @@
 
         </div>
 
-        
+        <section class="schedule-summary"><h2>Summary</h2><ul><li>Filled all 28 shifts across 6 clinicians.</li>
+<li>All 3 time-off requests honored.</li>
+<li>Workload is within 1 shift across everyone — the tightest spread possible.</li>
+<li>C. Johns went over target (5 vs 4).</li>
+<li>S. Reed hit their max of 5 shifts.</li>
+</ul></section>
     </div>
 </body>
 </html>

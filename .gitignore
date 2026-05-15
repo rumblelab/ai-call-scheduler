@@ -6,6 +6,7 @@ __pycache__/
 # Keep real working schedule data local by default.
 data/my_data/
 config/my_rules.json
+docs/video-gameplan.html
 
 # Keep sample output committed, but ignore ad hoc generated schedules.
 output/*

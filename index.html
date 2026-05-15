@@ -1003,7 +1003,7 @@ Wrote 28 assignments to output/sample_schedule.csv</pre>
         </div>
 
         <div class="note warning">
-          Don&rsquo;t move to real data until the dummy schedule works. When you do move to real data, replace names with IDs first.
+          Don&rsquo;t move to real data until the dummy schedule works. Real display names are fine for local work if your group is comfortable; use IDs or fake names for public examples and support requests.
         </div>
       </div>
     </section>
@@ -1013,7 +1013,7 @@ Wrote 28 assignments to output/sample_schedule.csv</pre>
       <div class="wrap">
         <p class="kicker">The output</p>
         <h2>Here&rsquo;s what comes out of the solver.</h2>
-        <p>Below is the actual <code>output/sample_schedule.csv</code> the sample produces, laid out as a real call calendar. Two weeks. Six clinicians. One OR shift and one OB shift per day. Status: <strong>OPTIMAL</strong>. 28 assignments. Every hard constraint respected.</p>
+        <p>Below is the actual <code>output/sample_schedule.csv</code> the sample produces, laid out as a real call calendar. Two weeks. Six clinicians. One OR shift and one OB shift per day. The solver found a valid schedule, filled 28 assignments, and respected every must-have rule.</p>
 
         <div class="grid-frame" role="region" aria-label="Sample 14-day call schedule">
           <div class="grid-frame-head">Sample schedule &mdash; June 1&ndash;14, 2026</div>
@@ -1243,17 +1243,16 @@ Dates in ISO format.</pre>
       <div class="wrap">
         <p class="kicker">Customization</p>
         <h2>Once the sample works, change one thing at a time.</h2>
-        <p>Copy the sample data into your own folder:</p>
-        <pre>cp -R data/sample data/my_data</pre>
-        <p>Copy the sample config:</p>
-        <pre>cp config/sample_rules.json config/my_rules.json</pre>
-        <p>In <code>config/my_rules.json</code>, point at your data:</p>
+        <p>Create your local working files from the templates:</p>
+        <pre>cp -R data/template data/my_data
+cp config/my_rules.template.json config/my_rules.json</pre>
+        <p><code>config/my_rules.json</code> already points at your local data folder:</p>
         <pre>{
   "input_dir": "data/my_data",
   "output_csv": "output/my_schedule.csv"
 }</pre>
         <p>Run it:</p>
-        <pre>.venv/bin/python solver.py --config config/my_rules.json</pre>
+        <pre>.venv/bin/python scripts/run_my_schedule.py</pre>
         <p>Change one file at a time. First clinicians. Then coverage. Then requests. Then history. If the model becomes infeasible, the newest change is usually where the conflict lives &mdash; remove that rule first and inspect what changed.</p>
         <p>For worked examples of common adaptations &mdash; adding a third shift type, locked assignments, weekend-pairing rules &mdash; see <code>docs/adaptation-cookbook.md</code>.</p>
       </div>
@@ -1294,11 +1293,17 @@ Before changing anything, please read these files in order:
 - docs/troubleshooting.md
 - docs/agent-privacy.md
 - config/sample_rules.json
+- config/my_rules.template.json
 - data/sample/clinicians.csv
 - data/sample/coverage.csv
 - data/sample/requests.csv
 - data/sample/history.csv
+- data/template/README.md
+- data/template/shift_pattern.csv
+- scripts/check_my_data.py
+- scripts/run_my_schedule.py
 - scripts/generate_coverage.py
+- scripts/start_next_month.py
 - solver.py
 
 Safety rules:
@@ -1307,7 +1312,7 @@ Safety rules:
 - If you need example data, invent fake data.
 - Add one rule at a time and tell me how to test it.
 
-Start by running the dummy solve and showing me the output.</pre>
+Start by running the dummy solve, opening the printable HTML, and telling me in plain English what happened.</pre>
           </div>
         </div>
 
@@ -1315,7 +1320,7 @@ Start by running the dummy solve and showing me the output.</pre>
         <ul>
           <li>"Generate a new <code>coverage.csv</code> for a different month."</li>
           <li>"Add a third shift type (NIGHT) and the matching eligibility column."</li>
-          <li>"Add a <code>locked_assignments.csv</code> file so I can pin specific people to specific shifts."</li>
+          <li>"Pin one person to a specific date and shift with a <code>lock</code> row in <code>requests.csv</code>."</li>
           <li>"Add a rule that nobody works both Saturday and Sunday of the same weekend."</li>
           <li>"Add a soft preference for spreading holidays fairly."</li>
         </ul>
@@ -1331,7 +1336,7 @@ Start by running the dummy solve and showing me the output.</pre>
       <div class="wrap">
         <p class="kicker">Privacy</p>
         <h2>Don&rsquo;t paste private schedules into public tools.</h2>
-        <p>Even without patient information, physician schedules, vacation requests, and internal group rules can still be sensitive. Start with the dummy data. When you swap in your own, replace names with IDs first.</p>
+        <p>Even without patient information, physician schedules, vacation requests, and internal group rules can still be sensitive. Start with the dummy data. Real names are workable in a local folder if your group is comfortable; use IDs or fake names when asking for public help.</p>
         <ul>
           <li>Don&rsquo;t upload real call history to public GitHub issues.</li>
           <li>Don&rsquo;t paste real vacation requests into tools your group hasn&rsquo;t cleared.</li>

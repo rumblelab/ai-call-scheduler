@@ -8,7 +8,7 @@ import csv
 import json
 import re
 from collections import Counter
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 
@@ -50,6 +50,8 @@ REQUIRED_FIELDS = {
     "history.csv": ["date", "clinician_id", "shift_type", "status"],
 }
 
+VALID_REQUEST_TYPES = {"vacation", "no_call", "prefer_off", "lock"}
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
@@ -72,12 +74,19 @@ def parse_bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y"}
 
 
-def parse_date(value: str) -> bool:
+def parse_date_value(value: str) -> date | None:
+    value = (value or "").strip()
     try:
-        datetime.strptime(value.strip(), "%Y-%m-%d")
+        return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError:
-        return False
-    return True
+        return None
+
+
+def iter_dates(start: date, end: date):
+    current = start
+    while current <= end:
+        yield current
+        current += timedelta(days=1)
 
 
 def eligibility_column(shift_type: str) -> str:
@@ -177,11 +186,14 @@ def main() -> int:
     shift_types: set[str] = set()
     shift_demand: Counter = Counter()
     shift_weekend_demand: Counter = Counter()
+    coverage_slots: set[tuple[str, str]] = set()
+    coverage_rows_by_slot: dict[tuple[str, str], list[int]] = {}
     total_demand = 0
     weekend_demand = 0
     for index, row in enumerate(coverage_rows, start=2):
         raw_date = row.get("date", "")
-        if not parse_date(raw_date):
+        parsed_date = parse_date_value(raw_date)
+        if parsed_date is None:
             errors.append(f"coverage.csv row {index} has an invalid date {raw_date!r}")
         shift_type = row.get("shift_type", "").strip().upper()
         if not shift_type:
@@ -193,12 +205,23 @@ def main() -> int:
         )
         shift_demand[shift_type] += count
         total_demand += count
-        if parse_date(raw_date) and datetime.strptime(raw_date.strip(), "%Y-%m-%d").weekday() >= 5:
+        if parsed_date is not None:
+            slot = (parsed_date.isoformat(), shift_type)
+            coverage_slots.add(slot)
+            coverage_rows_by_slot.setdefault(slot, []).append(index)
+        if parsed_date is not None and parsed_date.weekday() >= 5:
             shift_weekend_demand[shift_type] += count
             weekend_demand += count
 
     if not coverage_rows:
         errors.append("coverage.csv has no rows")
+    for (slot_date, shift_type), row_numbers in sorted(coverage_rows_by_slot.items()):
+        if len(row_numbers) > 1:
+            rows_text = ", ".join(str(n) for n in row_numbers)
+            warnings.append(
+                f"coverage.csv repeats {slot_date} {shift_type} on rows {rows_text}; "
+                "combine those into one required_count unless this is intentional."
+            )
 
     shift_eligible: dict[str, list[str]] = {}
     for shift_type in sorted(shift_types):
@@ -217,7 +240,14 @@ def main() -> int:
             continue
         shift_eligible[shift_type] = eligible
 
-    check_reference_rows("requests.csv", request_rows, active_ids, errors)
+    check_reference_rows(
+        "requests.csv",
+        request_rows,
+        active_ids,
+        errors,
+        shift_types=shift_types,
+        coverage_slots=coverage_slots,
+    )
     check_reference_rows("history.csv", history_rows, active_ids, errors)
 
     # Per-shift-type capacity summary. Catches infeasibilities the global
@@ -250,6 +280,8 @@ def check_reference_rows(
     rows: list[dict[str, str]],
     active_ids: set[str],
     errors: list[str],
+    shift_types: set[str] | None = None,
+    coverage_slots: set[tuple[str, str]] | None = None,
 ) -> None:
     date_fields = ["date"] if filename == "history.csv" else ["start_date", "end_date"]
     for index, row in enumerate(rows, start=2):
@@ -257,16 +289,55 @@ def check_reference_rows(
         clinician_id = resolve_clinician_key(raw_id, active_ids)
         if raw_id and clinician_id not in active_ids:
             errors.append(f"{filename} row {index} references unknown clinician {raw_id!r}")
+        parsed_dates: dict[str, date] = {}
         for field in date_fields:
             value = row.get(field, "")
-            if value and not parse_date(value):
+            parsed = parse_date_value(value)
+            if parsed is None:
                 errors.append(f"{filename} row {index} has an invalid {field} {value!r}")
+            else:
+                parsed_dates[field] = parsed
         if filename == "requests.csv":
             request_type = row.get("request_type", "").strip().lower()
-            if request_type == "lock" and not row.get("shift_type", "").strip():
+            request_id = row.get("request_id", "").strip() or f"row {index}"
+            shift_type = row.get("shift_type", "").strip().upper()
+            start = parsed_dates.get("start_date")
+            end = parsed_dates.get("end_date")
+
+            if request_type not in VALID_REQUEST_TYPES:
+                errors.append(
+                    f"{filename} row {index} has unknown request_type "
+                    f"{request_type!r}; use one of {sorted(VALID_REQUEST_TYPES)}"
+                )
+            if start is not None and end is not None and start > end:
+                errors.append(
+                    f"{filename} row {index} starts after it ends "
+                    f"({start.isoformat()} > {end.isoformat()})"
+                )
+            if shift_type and shift_types is not None and shift_type not in shift_types:
+                errors.append(
+                    f"{filename} row {index} names shift_type {shift_type!r}, "
+                    "but coverage.csv has no rows for that shift."
+                )
+            if request_type == "lock" and not shift_type:
                 errors.append(
                     f"{filename} row {index} is a lock but has no shift_type "
                     "(locks must name the shift to pin)"
+                )
+            elif (
+                request_type == "lock"
+                and start is not None
+                and end is not None
+                and coverage_slots is not None
+                and (shift_types is None or shift_type in shift_types)
+                and not any(
+                    (day.isoformat(), shift_type) in coverage_slots
+                    for day in iter_dates(start, end)
+                )
+            ):
+                errors.append(
+                    f"Lock request {request_id!r} did not match any coverage row "
+                    f"for {shift_type} from {start.isoformat()} to {end.isoformat()}."
                 )
 
 
