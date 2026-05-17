@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import random
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -241,6 +242,15 @@ def solve(config_path: Path, verbose: bool = False) -> int:
     model = cp_model.CpModel()
     coverage_ids = list(range(len(coverage)))
     clinician_ids = sorted(clinicians)
+
+    # CP-SAT breaks objective ties by exploration order, which follows variable
+    # creation order. Without this shuffle, alphabetically-adjacent clinicians
+    # keep landing on the same shifts month after month. Seeding by year+month
+    # of the coverage rotates the tiebreak across months while keeping each
+    # individual solve reproducible.
+    month_counts = Counter((row.date.year, row.date.month) for row in coverage)
+    (seed_year, seed_month), _ = month_counts.most_common(1)[0]
+    random.Random(seed_year * 100 + seed_month).shuffle(clinician_ids)
 
     # Decision variables:
     #
