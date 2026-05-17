@@ -18,6 +18,12 @@ Tell your agent about this repo:
 https://github.com/rumblelab/ai-call-scheduler
 ```
 
+Then say: *"Read AGENTS.md and help me run the sample solve."* Your agent does the rest.
+
+### What your agent will do first
+
+These are the commands the agent runs in the background to set the repo up — they're for the agent, not for you to type. The chief should see plain-English progress in chat, not shell blocks.
+
 ```bash
 git clone https://github.com/rumblelab/ai-call-scheduler.git
 cd ai-call-scheduler
@@ -26,14 +32,7 @@ python3 -m venv .venv
 .venv/bin/python solver.py
 ```
 
-Expected output:
-
-```text
-Status: OPTIMAL
-Wrote 28 assignments to output/sample_schedule.csv
-```
-
-Then open [`output/sample_schedule.html`](output/sample_schedule.html) in a browser to see the printable grid: 28 assignments, every hard rule respected, six clinicians fairly distributed, ready to print.
+When the solve finishes, the agent should open [`output/sample_schedule.html`](output/sample_schedule.html) for you — the printable grid: 28 assignments, every hard rule respected, six clinicians fairly distributed, ready to print.
 
 ## What v1 handles
 
@@ -67,54 +66,48 @@ This is a teaching example, not a production scheduler. Real groups also need ho
 | [`docs/scheduler-agent-skill.md`](docs/scheduler-agent-skill.md) | Hand this to your coding agent before it edits anything. |
 | [`docs/agent-privacy.md`](docs/agent-privacy.md) | What to do (and not do) with real physician data. |
 
-## Hand it to your agent
+## Web chat instead of a coding agent
 
-In a cloned repo with Claude Code, Codex, Cursor, or any agent that auto-loads `AGENTS.md`, just say:
-
-> Read AGENTS.md and help me run the dummy solve, then adapt one rule at a time.
-
-That's the whole handoff. `AGENTS.md` tells the agent what to read next, how to talk to you (plain English, no solver jargon), when to open the printable schedule, and how to build a coverage file for your real shifts.
-
-If you're working in a web chat instead (ChatGPT.com, Claude.ai), the [walkthrough](https://niceschedule.com/how-to-make-a-schedule-with-ai/) has a longer paste-in prompt that points the agent at this repo over the network.
+The setup above assumes Claude Code, Codex, Cursor, or another agent running in a cloned repo — they auto-load `AGENTS.md` and handle the rest. If you're in a web chat instead (ChatGPT.com, Claude.ai, no repo cloned), the [walkthrough](https://niceschedule.com/how-to-make-a-schedule-with-ai/) has a longer paste-in prompt that points the agent at this repo over the network.
 
 ## Set up your own schedule
 
-After the sample works, create local working files from the templates:
+After the sample solve looks right, tell your agent you're ready to build your own — something like *"Let's set up my real group's schedule."*
+
+What the agent does for you:
+
+- Copies the templates into `data/my_data/` and `config/my_rules.json` (local paths ignored by Git, so your roster never gets committed).
+- Asks you about your group — who's on staff, what shifts run on which days, vacation and no-call requests, recent call history — and writes the answers into the CSVs.
+- Runs the configured solve and opens the HTML output for you to review.
+
+The commands the agent runs in the background (not for you to type):
 
 ```bash
 cp -R data/template data/my_data
 cp config/my_rules.template.json config/my_rules.json
-```
-
-Those paths are ignored by Git so local roster, request, and schedule data do not get committed by accident.
-
-Fill in `data/my_data/clinicians.csv`, generate or edit `coverage.csv`, add requests, then run:
-
-```bash
 .venv/bin/python scripts/run_my_schedule.py
 ```
 
-That checks the CSVs, runs `solver.py --config config/my_rules.json`, and opens the configured HTML output.
-
 ## Use it again next month
 
-After the sample works and your real `data/my_data/` plus `config/my_rules.json` are set up, you do not need to run the dummy solve every month.
+Once your real `data/my_data/` plus `config/my_rules.json` are set up, you don't need to run the sample solve again. For each new month, just tell your agent *"start next month's schedule"* and pass on this month's vacation requests (paste a screenshot, an email thread, whatever you have).
 
-For the next schedule:
+What the agent does for you:
 
-1. Start the month:
+- Carries last month's output into `history.csv` so fairness stays balanced across months.
+- Regenerates `coverage.csv` for the new month and updates the output filename in `config/my_rules.json`.
+- Adds the new vacation and no-call requests to `requests.csv`.
+- Updates `clinicians.csv` only if you mentioned roster, eligibility, target, or max changes.
+- Runs the configured solve and opens the HTML for you to review.
+
+The commands the agent runs in the background (not for you to type):
 
 ```bash
 .venv/bin/python scripts/start_next_month.py
+.venv/bin/python scripts/run_my_schedule.py
 ```
 
-That infers the next month from your last output filename (or jumps to next calendar month on a fresh repo). Pass `--year 2026 --month 8` explicitly if you want a specific month instead.
-
-2. Update `data/my_data/requests.csv` with the new vacation and no-call requests.
-3. Update `data/my_data/clinicians.csv` only for roster, eligibility, target, or max changes.
-4. Run `.venv/bin/python scripts/run_my_schedule.py`.
-
-Then open the configured HTML output and review the schedule.
+If you want a specific month instead of the next one inferred from the last output, tell the agent (e.g. *"start August 2026"*).
 
 ## Privacy
 
