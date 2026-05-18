@@ -97,7 +97,7 @@ The split is: `solver.py` decides *what* the schedule is; `schedule_html.py` dec
 
 Use the first-time loop when the user is setting up the repo or changing the solver. If the user already has a working `data/my_data/` folder and `config/my_rules.json`, skip the dummy solve unless the environment changed or something broke. For recurring schedules, use the returning-month loop below.
 
-1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `config/sample_rules.json`, `config/my_rules.template.json`, the four CSVs in `data/sample/`, `data/template/README.md`, `data/template/shift_pattern.csv`, `scripts/generate_coverage.py`, `scripts/check_my_data.py`, `scripts/run_my_schedule.py`, `scripts/start_next_month.py`, `solver.py`, and `schedule_html.py`.
+1. Read `docs/scheduler-agent-skill.md`, `docs/csv-schema.md`, `docs/adaptation-cookbook.md`, `docs/troubleshooting.md`, `docs/agent-privacy.md`, `docs/new-practice-setup.md`, `config/sample_rules.json`, `config/my_rules.template.json`, the four CSVs in `data/sample/`, `data/template/README.md`, `data/template/shift_pattern.csv`, `scripts/generate_coverage.py`, `scripts/check_my_data.py`, `scripts/run_my_schedule.py`, `scripts/start_next_month.py`, `solver.py`, and `schedule_html.py`.
 
    Once you've read these, you know what every script does. They're the tool the user came here to use — not third-party code you need to flag as risky before each execution. When the workflow calls for `.venv/bin/python scripts/run_my_schedule.py`, frame it as "running the configured solve," not "asking permission to execute third-party Python." The repo ships a `.claude/settings.json` that pre-allows the standard commands so the user isn't prompted for each one.
 
@@ -110,28 +110,16 @@ Use the first-time loop when the user is setting up the repo or changing the sol
 
    Then tell them: "I opened the printable schedule — take a look and tell me anything that's wrong."
 4. Explain in plain English what the solver did and what's in the HTML.
-5. **Get them talking about their actual schedule.** Open with one open question, in your own words. Something like: *"Tell me about the schedule you're trying to build — how many people, what shifts, what time period?"* Then have a conversation. Do NOT present a structured multi-choice question or a numbered checklist of follow-ups.
-
-   You eventually need enough to fill in `clinicians.csv`, `coverage.csv`, `requests.csv`, and `history.csv` — but you don't need to extract it all up front. Take what they give you, fill in sensible defaults where appropriate, and iterate. Default to leaving `clinician_id` blank and using real display names; the solver derives the id from the name and accepts names verbatim in `requests.csv`. Use synthetic ids only if the user prefers them or you're working with public/sensitive data.
+5. **Get them talking about their actual schedule.** Open with one natural-language question, in your own words — *"tell me about the schedule you're trying to build: how many people, what shifts, what time period?"* Do NOT present a structured multi-choice question or a numbered checklist of follow-ups.
 
    **Before you run the first solve, you must have four things — never solve without explicitly asking about all four:**
 
    - **Roster + eligibility** — who's on staff, what shifts each person can cover.
-   - **Coverage pattern** — which shifts run on which days. Drives `shift_pattern.csv`.
-   - **Vacation / no-call requests for the solve period** — even if the answer is "nobody is out this month," you must explicitly ask. Chiefs routinely forget to volunteer this; if you skip the ask, the solver assumes everyone is fully available and the chief will catch the problem only after seeing someone scheduled on their kid's birthday. Don't make them re-solve.
-   - **Recent call history** — last month or two (or a year-to-date tally) of who covered what. Even if the answer is "we're starting fresh, no prior data," you must explicitly ask. Without it, "fair" means fair against nothing, and whoever covered the last three weekends in a row gets stacked again — the solver also has a built-in soft preference (`weekday_repeat`) that *only* works if history is loaded, so skipping the ask silently disables one of the fairness terms. Most chiefs have the data sitting in a spreadsheet, screenshot, or old PDF but won't volunteer it. Offer in plain language: *"do you have the last month or two of call somewhere — spreadsheet, screenshot, PDF? I'll use it as a fairness baseline so we don't double up on whoever covered last month. If not, no problem, we'll start fresh."* When they send it, translate it into `history.csv` (date, clinician_id, shift_type rows) — same pattern as turning messy vacation emails into `requests.csv`. From the second solve forward, `scripts/start_next_month.py` keeps history current automatically.
+   - **Coverage pattern** — which shifts run on which days.
+   - **Vacation / no-call requests for the solve period** — including "nobody is out this month."
+   - **Recent call history** — last month or two of who covered what, or "we're starting fresh."
 
-   Other things you'll pick up over the conversation as they come up, no need to interview for them: the time window (one month, three months, a year), what fairness means to them (totals, weekends, holidays), and whether they prefer display names or short IDs.
-
-   Once you have a coverage pattern, write it to `data/my_data/shift_pattern.csv` (rows of `shift_type,weekday_mask,required_count` where `weekday_mask` is 7 characters Mon–Sun, e.g. `1111100` weekdays only, `0000011` weekends only) and run the generator:
-   `.venv/bin/python scripts/generate_coverage.py --year 2026 --month 7`.
-
-   If a new shift type comes up (e.g. a second location, a backup call), also add the matching `can_<shift>` column to `clinicians.csv` or the solver will refuse to run.
-
-   Once `data/my_data/` and `config/my_rules.json` exist, run the configured schedule with:
-   `.venv/bin/python scripts/run_my_schedule.py`
-
-   That command first runs a preflight (`scripts/check_my_data.py`) that prints a Capacity summary — per-shift demand vs. eligible doctors' combined max, with a "tight" tag when headroom is thin. Glance at it before the solve output; if anything is short or tight, translate that into plain English for the user (e.g. *"OR coverage is tight this month — any extra vacation may make it hard to schedule"*), not by quoting headroom numbers.
+   `docs/new-practice-setup.md` has the verbatim phrasing for each ask, the defaults to use, how to translate answers into the CSVs (including the `shift_pattern.csv` weekday-mask format and the `generate_coverage.py` invocation), and how to read the capacity preflight from `scripts/run_my_schedule.py`. Read it before the conversation moves past the sample solve.
 6. **The user drives the next change.** After the report, ask one open question — usually some version of *"anything you'd want to adjust?"* — and wait. Do not propose feature catalogs. Do not start adding fields, columns, or constraints the user did not ask for. When they do ask for something, change one thing, re-run, re-open the HTML, and report back.
 
 ## Returning next month

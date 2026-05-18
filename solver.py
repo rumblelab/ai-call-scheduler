@@ -247,7 +247,10 @@ def solve(config_path: Path, verbose: bool = False) -> int:
     # creation order. Without this shuffle, alphabetically-adjacent clinicians
     # keep landing on the same shifts month after month. Seeding by year+month
     # of the coverage rotates the tiebreak across months while keeping each
-    # individual solve reproducible.
+    # individual solve reproducible. Multi-month solves use the most common
+    # month's seed — proper per-month rotation would also require per-month
+    # fairness aggregates (target_shifts is per-clinician across the whole
+    # solve period, not per-month), which is out of scope for this tutorial.
     month_counts = Counter((row.date.year, row.date.month) for row in coverage)
     (seed_year, seed_month), _ = month_counts.most_common(1)[0]
     random.Random(seed_year * 100 + seed_month).shuffle(clinician_ids)
