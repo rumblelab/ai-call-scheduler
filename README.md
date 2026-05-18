@@ -64,6 +64,7 @@ This is a teaching example, not a production scheduler. Real groups also need ho
 | [`docs/adaptation-cookbook.md`](docs/adaptation-cookbook.md) | Worked examples: third shift type, locked assignments, weekend pairing. |
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | Every solver or data-check error and how to fix it. |
 | [`docs/scheduler-agent-skill.md`](docs/scheduler-agent-skill.md) | Hand this to your coding agent before it edits anything. |
+| [`docs/new-practice-setup.md`](docs/new-practice-setup.md) | Agent-facing walkthrough for the first real-practice schedule. |
 | [`docs/agent-privacy.md`](docs/agent-privacy.md) | What to do (and not do) with real physician data. |
 
 ## Web chat instead of a coding agent
