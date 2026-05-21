@@ -480,7 +480,8 @@ def solve(config_path: Path, verbose: bool = False) -> int:
     solver.parameters.num_search_workers = 8
     solver.parameters.random_seed = 1
     solver.parameters.interleave_search = True
-    solver.parameters.log_search_progress = True
+    if verbose:
+        solver.parameters.log_search_progress = True
     status = solver.Solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
