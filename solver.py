@@ -480,12 +480,17 @@ def solve(config_path: Path, verbose: bool = False) -> int:
     solver.parameters.num_search_workers = 8
     solver.parameters.random_seed = 1
     solver.parameters.interleave_search = True
+    if verbose:
+        solver.parameters.log_search_progress = True
     status = solver.Solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         print("No feasible schedule found.")
         print("Try relaxing max_shifts, max_weekend_shifts, rest gaps, or hard requests.")
         return 2
+
+    if verbose:
+        print(solver.ResponseStats())
 
     # Convert selected assignment variables back into rows a human can inspect.
     rows = []
