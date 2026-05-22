@@ -337,6 +337,13 @@ def write_html_schedule(
         rows_html += f'<div class="gtotal col-weekend"{cid_attr}>{weekend_inner}</div>\n'
 
     fingerprint = hashlib.sha256("\n".join(fingerprint_lines).encode()).hexdigest()[:16]
+    # Filename slug for the "Export CSV" button. Same-month schedules
+    # collapse to YYYY-MM; ones that span months use a date range so the
+    # filename stays self-describing if a chief downloads it weeks later.
+    if all_dates[0].strftime("%Y-%m") == all_dates[-1].strftime("%Y-%m"):
+        period_slug = all_dates[0].strftime("%Y-%m")
+    else:
+        period_slug = f'{all_dates[0].isoformat()}_{all_dates[-1].isoformat()}'
 
     # Legend.
     legend_items = ""
@@ -465,6 +472,11 @@ def write_html_schedule(
       white-space: nowrap;
     }
     .edits-bar.visible { display: inline-flex; }
+
+    /* Once the user has made any edits, the solver-generated summary
+       ("C. Johns went over target 5 vs 4") no longer matches the grid.
+       Hide it so the on-screen totals are the only source of truth. */
+    body.has-edits .schedule-summary { display: none; }
     .edits-bar button {
       padding: 2px 8px;
       font-size: 10px;
@@ -648,6 +660,7 @@ def write_html_schedule(
             // fingerprint below — re-running the solver invalidates edits.
             const FINGERPRINT = "{fingerprint}";
             const STORAGE_KEY = "niceschedule-edits:" + FINGERPRINT;
+            const PERIOD_SLUG = "{period_slug}";
 
             function cellKey(cell) {{
                 return cell.dataset.date + "|" + cell.dataset.cid;
@@ -776,8 +789,10 @@ def write_html_schedule(
                 if (edited > 0) {{
                     bar.classList.add('visible');
                     count.textContent = edited + (edited === 1 ? ' edited cell' : ' edited cells');
+                    document.body.classList.add('has-edits');
                 }} else {{
                     bar.classList.remove('visible');
+                    document.body.classList.remove('has-edits');
                 }}
             }}
 
@@ -811,12 +826,11 @@ def write_html_schedule(
                     const s = String(v);
                     return /[",\\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
                 }}).join(',')).join('\\n');
-                const stamp = new Date().toISOString().slice(0, 10);
                 const blob = new Blob([csv], {{ type: 'text/csv;charset=utf-8' }});
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'schedule-' + stamp + '.csv';
+                a.download = 'schedule-' + PERIOD_SLUG + '.csv';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
