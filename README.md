@@ -1,6 +1,6 @@
 # AI Call Scheduler
 
-Deterministic call schedules. Hand it a roster, the shifts to cover, and any time-off requests; it produces a printable HTML schedule that respects every hard rule and balances totals, weekends, and recent history.
+Deterministic call schedules. Hand it a roster, the shifts to cover, and any time-off requests; it produces a printable, drag-and-drop-editable HTML schedule that respects every hard rule and balances totals, weekends, and recent history.
 
 The schedule itself is computed by [Google's OR-Tools](https://developers.google.com/optimization) — open-source, the same engine Google uses for its own logistics — so it doesn't hallucinate. AI is used only to translate human rules into the solver's input, never to invent the schedule. Inspired by [this r/Residency thread](https://www.reddit.com/r/Residency/comments/1r4zdjx/for_all_the_seniorchief_residents_how_do_you_make/) where the top reply said no AI could do it.
 

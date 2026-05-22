@@ -108,7 +108,7 @@ Use the first-time loop when the user is setting up the repo or changing the sol
    - Linux: `xdg-open output/sample_schedule.html`
    - Windows: `start output/sample_schedule.html`
 
-   Then tell them: "I opened the printable schedule — take a look and tell me anything that's wrong."
+   Then tell them: "I opened the printable schedule — take a look. You can drag a shift onto another doctor on the same day for a one-off swap; for anything that needs a rule or data change, tell me and we'll re-solve."
 4. Explain in plain English what the solver did and what's in the HTML.
 5. **Get them talking about their actual schedule.** Open with one natural-language question, in your own words — *"tell me about the schedule you're trying to build: how many people, what shifts, what time period?"* Do NOT present a structured multi-choice question or a numbered checklist of follow-ups.
 
