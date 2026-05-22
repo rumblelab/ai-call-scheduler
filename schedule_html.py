@@ -9,6 +9,7 @@ to change how the schedule is built.
 
 from __future__ import annotations
 
+import hashlib
 from collections import Counter, defaultdict
 from datetime import date, datetime
 from html import escape
@@ -255,6 +256,11 @@ def write_html_schedule(
         shift_css += (
             f"    .gcell.{cls} {{ background: {bg}; color: {ink}; box-shadow: inset 0 0 0 1px {ink}33; font-weight: 700; }}\n"
             f"    .swatch.{cls} {{ background: {bg}; border: 1px solid {ink}44; }}\n"
+            # The edited-marker dot picks up the *original* shift's ink, so a
+            # cell that lost an OR still shows a blue dot even though it now
+            # renders as empty. Cells that were originally empty fall back to
+            # currentColor (set on .gcell.edited::after below).
+            f"    .gcell.edited[data-orig-cls=\"{cls}\"]::after {{ background: {ink}; }}\n"
             f"    @media print {{ .gcell.{cls} {{ background: white !important; color: black !important; box-shadow: none !important; }} }}\n"
             f"    @media print {{ body.print-color .gcell.{cls} {{ background: {bg} !important; color: {ink} !important; box-shadow: inset 0 0 0 1px {ink}33 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }} }}\n"
         )
@@ -280,34 +286,57 @@ def write_html_schedule(
     header_html += '<div class="gh totals col-weekend">Weekend</div>\n'
 
     # Clinician rows.
+    fingerprint_lines: list[str] = []
     rows_html = ""
     for cid in clinician_ids:
-        rows_html += f'<div class="gname">{escape(clinicians[cid]["name"])}</div>\n'
+        rows_html += f'<div class="gname" data-cid="{escape(cid)}">{escape(clinicians[cid]["name"])}</div>\n'
         for d in all_dates:
             weekend_cls = " weekend" if is_weekend(d) else ""
             shifts = assignment_map.get((d, cid), [])
             hard_blocks = hard_block_map.get((d, cid), [])
+            iso = d.isoformat()
+            coords = f' data-date="{iso}" data-cid="{escape(cid)}"'
 
             if shifts:
                 label = " / ".join(shifts)
                 cls = shift_css_class(shifts[0])
-                rows_html += f'<div class="gcell{weekend_cls} {cls}">{escape(label)}</div>\n'
+                for s in shifts:
+                    fingerprint_lines.append(f"a|{iso}|{cid}|{s}")
+                # data-orig-* lets the JS detect when a swap returns a cell to
+                # its solver-original state so chain moves only flag the net
+                # change, not every cell touched along the way.
+                rows_html += (
+                    f'<div class="gcell{weekend_cls} {cls}"{coords}'
+                    f' draggable="true" data-shift="{escape(label)}"'
+                    f' data-shift-class="{cls}"'
+                    f' data-orig-shift="{escape(label)}" data-orig-cls="{cls}"'
+                    f' title="Call (solver) — drag up/down to reassign within this day">'
+                    f'{escape(label)}</div>\n'
+                )
             elif hard_blocks:
                 label = " / ".join(label for label, _kind in hard_blocks)
                 block_kind = "vacation" if any(kind == "vacation" for _label, kind in hard_blocks) else "block"
-                rows_html += f'<div class="gcell{weekend_cls} {block_kind}">{escape(label)}</div>\n'
+                for blk_label, kind in hard_blocks:
+                    fingerprint_lines.append(f"b|{iso}|{cid}|{kind}|{blk_label}")
+                rows_html += (
+                    f'<div class="gcell{weekend_cls} {block_kind}"{coords}'
+                    f' data-locked="true">{escape(label)}</div>\n'
+                )
             else:
-                rows_html += f'<div class="gcell{weekend_cls} empty"></div>\n'
+                rows_html += f'<div class="gcell{weekend_cls} empty"{coords}></div>\n'
 
         target = parse_int(clinicians[cid].get("target_shifts", ""), 0)
         weekend_target = parse_int(clinicians[cid].get("target_weekend_shifts", ""), 0)
         total = totals[cid]
         weekend = weekend_totals[cid]
 
+        cid_attr = f' data-cid="{escape(cid)}"'
         total_inner = f'{total}<span class="target">/{target}</span>' if target else f'{total}'
-        rows_html += f'<div class="gtotal col-total">{total_inner}</div>\n'
+        rows_html += f'<div class="gtotal col-total"{cid_attr}>{total_inner}</div>\n'
         weekend_inner = f'{weekend}<span class="target">/{weekend_target}</span>' if weekend_target else f'{weekend}'
-        rows_html += f'<div class="gtotal col-weekend">{weekend_inner}</div>\n'
+        rows_html += f'<div class="gtotal col-weekend"{cid_attr}>{weekend_inner}</div>\n'
+
+    fingerprint = hashlib.sha256("\n".join(fingerprint_lines).encode()).hexdigest()[:16]
 
     # Legend.
     legend_items = ""
@@ -397,6 +426,62 @@ def write_html_schedule(
     .gcell.weekend { background: #fafafa; }
     .gcell.empty { color: #eee; }
 
+    /* Drag-and-drop affordances. Pills lock to their day column (vertical
+       moves only); vacation/block cells reject drops. State persists in
+       localStorage keyed by a fingerprint of the original solve. */
+    .gcell[draggable="true"] { cursor: grab; user-select: none; }
+    .gcell[draggable="true"]:active { cursor: grabbing; }
+    .gcell.dragging { opacity: 0.35; }
+    .gcell.drop-target { outline: 2px dashed #f59e0b; outline-offset: -3px; }
+    .gcell.edited { position: relative; }
+    .gcell.edited::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      /* Default for cells that gained a shift (no data-orig-cls): use the
+         current shift's ink. Per-shift overrides for cells that *lost* a
+         shift are generated alongside the .gcell.{cls} rules below so the
+         dot reflects the original shift's color. */
+      background: currentColor;
+      pointer-events: none;
+    }
+    .edits-bar {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8a5a00;
+      background: #fff7e0;
+      border: 1px solid #f0d68a;
+      white-space: nowrap;
+    }
+    .edits-bar.visible { display: inline-flex; }
+    .edits-bar button {
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: #fff;
+      color: #5a3a00;
+      border: 1px solid #d6b85a;
+      cursor: pointer;
+    }
+    .edits-bar button:hover { background: #fff1c2; }
+    @media print {
+      .gcell.edited::after, .gcell.drop-target { display: none !important; outline: none !important; }
+      .edits-bar { display: none !important; visibility: hidden !important; }
+    }
+
     .gtotal {
       display: flex;
       align-items: center;
@@ -457,7 +542,15 @@ def write_html_schedule(
       font-weight: 800;
     }
 
-    .print-actions { margin-bottom: 24px; display: flex; gap: 12px; }
+    .print-actions {
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      /* Reserve the bar's height so it doesn't push the grid down when it
+         appears after a drag. Bar = 11px font + 4px padding + 1px border ≈ 28px. */
+      min-height: 28px;
+    }
     .btn-subtle {
       padding: 4px 10px;
       font-size: 11px;
@@ -468,6 +561,9 @@ def write_html_schedule(
       color: #333;
       border: 1px solid #ddd;
       cursor: pointer;
+      /* Keep label on one line so the row height doesn't change when the
+         edits-bar appears and squeezes horizontal space. */
+      white-space: nowrap;
     }
     .btn-subtle:hover { background: #ddd; }
 
@@ -529,6 +625,11 @@ def write_html_schedule(
         <div class="print-actions">
             <button class="btn-subtle" onclick="window.print()">Print Schedule</button>
             <button class="btn-subtle" onclick="printInColor()">Print in Color</button>
+            <button class="btn-subtle" onclick="exportCsv()">Export CSV</button>
+            <span class="edits-bar" id="edits-bar">
+                <span id="edits-count">0 edits</span>
+                <button onclick="resetEdits()">Reset to solver</button>
+            </span>
         </div>
         <script>
             function printInColor() {{
@@ -538,6 +639,231 @@ def write_html_schedule(
             window.addEventListener('afterprint', function () {{
                 document.body.classList.remove('print-color');
             }});
+
+            // ---- Drag-and-drop editing ----------------------------------
+            // Pills lock to their day column. Drop targets are cells on the
+            // same date that aren't vacation/block (data-locked). Swaps
+            // exchange shift/class/text; empty targets just move the pill.
+            // Final per-cell state is persisted in localStorage keyed by the
+            // fingerprint below — re-running the solver invalidates edits.
+            const FINGERPRINT = "{fingerprint}";
+            const STORAGE_KEY = "niceschedule-edits:" + FINGERPRINT;
+
+            function cellKey(cell) {{
+                return cell.dataset.date + "|" + cell.dataset.cid;
+            }}
+
+            function applyCellState(cell, shift, cls) {{
+                const oldCls = cell.dataset.shiftClass;
+                if (oldCls) cell.classList.remove(oldCls);
+                if (shift) {{
+                    cell.classList.add(cls);
+                    cell.classList.remove('empty');
+                    cell.textContent = shift;
+                    cell.setAttribute('draggable', 'true');
+                    cell.dataset.shift = shift;
+                    cell.dataset.shiftClass = cls;
+                    cell.setAttribute('title', 'Call (edited) — drag up/down to reassign');
+                }} else {{
+                    cell.classList.add('empty');
+                    cell.textContent = '';
+                    cell.removeAttribute('draggable');
+                    delete cell.dataset.shift;
+                    delete cell.dataset.shiftClass;
+                    cell.removeAttribute('title');
+                }}
+            }}
+
+            function swapCells(src, dst) {{
+                const srcShift = src.dataset.shift || '';
+                const srcCls = src.dataset.shiftClass || '';
+                const dstShift = dst.dataset.shift || '';
+                const dstCls = dst.dataset.shiftClass || '';
+                const srcCid = src.dataset.cid;
+                const dstCid = dst.dataset.cid;
+                applyCellState(src, dstShift, dstCls);
+                applyCellState(dst, srcShift, srcCls);
+                refreshEditedFlag(src);
+                refreshEditedFlag(dst);
+                recomputeTotals(srcCid);
+                recomputeTotals(dstCid);
+                saveState();
+            }}
+
+            // A cell is "edited" only if its current shift differs from what
+            // the solver originally put there. Chain moves (A→B→C) leave B
+            // unmarked because B is back to its original empty state.
+            function refreshEditedFlag(cell) {{
+                const origShift = cell.dataset.origShift || '';
+                const origCls = cell.dataset.origCls || '';
+                const curShift = cell.dataset.shift || '';
+                const curCls = cell.dataset.shiftClass || '';
+                if (curShift === origShift && curCls === origCls) {{
+                    cell.classList.remove('edited');
+                }} else {{
+                    cell.classList.add('edited');
+                }}
+            }}
+
+            // Totals (Total + Weekend columns) are baked into the HTML by the
+            // solver. After a swap we recompute them client-side for the two
+            // doctors whose cells changed. Multi-shift cells ("OR / OB") count
+            // by the number of shifts, matching the Python aggregation.
+            function recomputeTotals(cid) {{
+                if (!cid) return;
+                let total = 0, weekend = 0;
+                document.querySelectorAll('.gcell[data-cid="' + cid + '"]').forEach(cell => {{
+                    const s = cell.dataset.shift;
+                    if (!s) return;
+                    const n = s.split(' / ').length;
+                    total += n;
+                    if (cell.classList.contains('weekend')) weekend += n;
+                }});
+                const totalEl = document.querySelector(
+                    '.gtotal.col-total[data-cid="' + cid + '"]'
+                );
+                const weekendEl = document.querySelector(
+                    '.gtotal.col-weekend[data-cid="' + cid + '"]'
+                );
+                if (totalEl && totalEl.firstChild) totalEl.firstChild.nodeValue = String(total);
+                if (weekendEl && weekendEl.firstChild) weekendEl.firstChild.nodeValue = String(weekend);
+            }}
+
+            function saveState() {{
+                const cells = {{}};
+                document.querySelectorAll('.gcell.edited[data-date]').forEach(cell => {{
+                    cells[cellKey(cell)] = {{
+                        shift: cell.dataset.shift || null,
+                        cls: cell.dataset.shiftClass || null,
+                    }};
+                }});
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({{
+                    fingerprint: FINGERPRINT, cells,
+                }}));
+                updateEditsBar();
+            }}
+
+            function loadState() {{
+                let raw;
+                try {{ raw = localStorage.getItem(STORAGE_KEY); }} catch (e) {{ return; }}
+                if (!raw) return;
+                let parsed;
+                try {{ parsed = JSON.parse(raw); }} catch (e) {{ return; }}
+                if (!parsed || parsed.fingerprint !== FINGERPRINT) {{
+                    try {{ localStorage.removeItem(STORAGE_KEY); }} catch (e) {{}}
+                    return;
+                }}
+                const touchedCids = new Set();
+                Object.entries(parsed.cells || {{}}).forEach(([key, val]) => {{
+                    const [date, cid] = key.split('|');
+                    const cell = document.querySelector(
+                        '.gcell[data-date="' + date + '"][data-cid="' + cid + '"]'
+                    );
+                    if (cell && cell.dataset.locked !== 'true') {{
+                        applyCellState(cell, val.shift || '', val.cls || '');
+                        refreshEditedFlag(cell);
+                        touchedCids.add(cid);
+                    }}
+                }});
+                touchedCids.forEach(recomputeTotals);
+                updateEditsBar();
+            }}
+
+            function updateEditsBar() {{
+                const bar = document.getElementById('edits-bar');
+                const count = document.getElementById('edits-count');
+                const edited = document.querySelectorAll('.gcell.edited').length;
+                if (edited > 0) {{
+                    bar.classList.add('visible');
+                    count.textContent = edited + (edited === 1 ? ' edited cell' : ' edited cells');
+                }} else {{
+                    bar.classList.remove('visible');
+                }}
+            }}
+
+            function resetEdits() {{
+                try {{ localStorage.removeItem(STORAGE_KEY); }} catch (e) {{}}
+                location.reload();
+            }}
+
+            // Export the current grid (including any drag-and-drop edits) as
+            // a CSV matching the solver's schema: date,shift_type,clinician_id,name.
+            // Multi-shift cells expand to one row per shift.
+            function exportCsv() {{
+                const nameByCid = {{}};
+                document.querySelectorAll('.gname[data-cid]').forEach(g => {{
+                    nameByCid[g.dataset.cid] = g.textContent.trim();
+                }});
+                const rows = [['date', 'shift_type', 'clinician_id', 'name']];
+                const cells = Array.from(document.querySelectorAll('.gcell[data-shift]'));
+                cells.sort((a, b) => {{
+                    const dc = a.dataset.date.localeCompare(b.dataset.date);
+                    if (dc !== 0) return dc;
+                    return a.dataset.shift.localeCompare(b.dataset.shift);
+                }});
+                for (const cell of cells) {{
+                    const shifts = cell.dataset.shift.split(' / ');
+                    for (const s of shifts) {{
+                        rows.push([cell.dataset.date, s, cell.dataset.cid, nameByCid[cell.dataset.cid] || cell.dataset.cid]);
+                    }}
+                }}
+                const csv = rows.map(r => r.map(v => {{
+                    const s = String(v);
+                    return /[",\\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+                }}).join(',')).join('\\n');
+                const stamp = new Date().toISOString().slice(0, 10);
+                const blob = new Blob([csv], {{ type: 'text/csv;charset=utf-8' }});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'schedule-' + stamp + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }}
+
+            let dragSource = null;
+            document.addEventListener('dragstart', e => {{
+                const cell = e.target.closest && e.target.closest('.gcell[draggable="true"]');
+                if (!cell) return;
+                dragSource = cell;
+                cell.classList.add('dragging');
+                if (e.dataTransfer) {{
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', cell.dataset.shift || '');
+                }}
+            }});
+            document.addEventListener('dragend', () => {{
+                if (dragSource) dragSource.classList.remove('dragging');
+                document.querySelectorAll('.gcell.drop-target').forEach(c =>
+                    c.classList.remove('drop-target'));
+                dragSource = null;
+            }});
+            function validTarget(cell) {{
+                if (!dragSource || !cell || cell === dragSource) return false;
+                if (!cell.dataset.date) return false;
+                if (cell.dataset.date !== dragSource.dataset.date) return false;
+                if (cell.dataset.locked === 'true') return false;
+                return true;
+            }}
+            document.addEventListener('dragover', e => {{
+                const cell = e.target.closest && e.target.closest('.gcell[data-date]');
+                if (!validTarget(cell)) return;
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+                document.querySelectorAll('.gcell.drop-target').forEach(c =>
+                    c.classList.remove('drop-target'));
+                cell.classList.add('drop-target');
+            }});
+            document.addEventListener('drop', e => {{
+                const cell = e.target.closest && e.target.closest('.gcell[data-date]');
+                if (!validTarget(cell)) return;
+                e.preventDefault();
+                swapCells(dragSource, cell);
+            }});
+
+            document.addEventListener('DOMContentLoaded', loadState);
         </script>
         <header>
             <div class="header-copy">

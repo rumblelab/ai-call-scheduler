@@ -83,6 +83,62 @@
     .gcell.weekend { background: #fafafa; }
     .gcell.empty { color: #eee; }
 
+    /* Drag-and-drop affordances. Pills lock to their day column (vertical
+       moves only); vacation/block cells reject drops. State persists in
+       localStorage keyed by a fingerprint of the original solve. */
+    .gcell[draggable="true"] { cursor: grab; user-select: none; }
+    .gcell[draggable="true"]:active { cursor: grabbing; }
+    .gcell.dragging { opacity: 0.35; }
+    .gcell.drop-target { outline: 2px dashed #f59e0b; outline-offset: -3px; }
+    .gcell.edited { position: relative; }
+    .gcell.edited::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      /* Default for cells that gained a shift (no data-orig-cls): use the
+         current shift's ink. Per-shift overrides for cells that *lost* a
+         shift are generated alongside the .gcell.{cls} rules below so the
+         dot reflects the original shift's color. */
+      background: currentColor;
+      pointer-events: none;
+    }
+    .edits-bar {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8a5a00;
+      background: #fff7e0;
+      border: 1px solid #f0d68a;
+      white-space: nowrap;
+    }
+    .edits-bar.visible { display: inline-flex; }
+    .edits-bar button {
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: #fff;
+      color: #5a3a00;
+      border: 1px solid #d6b85a;
+      cursor: pointer;
+    }
+    .edits-bar button:hover { background: #fff1c2; }
+    @media print {
+      .gcell.edited::after, .gcell.drop-target { display: none !important; outline: none !important; }
+      .edits-bar { display: none !important; visibility: hidden !important; }
+    }
+
     .gtotal {
       display: flex;
       align-items: center;
@@ -143,7 +199,15 @@
       font-weight: 800;
     }
 
-    .print-actions { margin-bottom: 24px; display: flex; gap: 12px; }
+    .print-actions {
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      /* Reserve the bar's height so it doesn't push the grid down when it
+         appears after a drag. Bar = 11px font + 4px padding + 1px border ≈ 28px. */
+      min-height: 28px;
+    }
     .btn-subtle {
       padding: 4px 10px;
       font-size: 11px;
@@ -154,6 +218,9 @@
       color: #333;
       border: 1px solid #ddd;
       cursor: pointer;
+      /* Keep label on one line so the row height doesn't change when the
+         edits-bar appears and squeezes horizontal space. */
+      white-space: nowrap;
     }
     .btn-subtle:hover { background: #ddd; }
 
@@ -198,10 +265,12 @@
     }
     .gcell.s-ob { background: #f4e8d3; color: #6e4a16; box-shadow: inset 0 0 0 1px #6e4a1633; font-weight: 700; }
     .swatch.s-ob { background: #f4e8d3; border: 1px solid #6e4a1644; }
+    .gcell.edited[data-orig-cls="s-ob"]::after { background: #6e4a16; }
     @media print { .gcell.s-ob { background: white !important; color: black !important; box-shadow: none !important; } }
     @media print { body.print-color .gcell.s-ob { background: #f4e8d3 !important; color: #6e4a16 !important; box-shadow: inset 0 0 0 1px #6e4a1633 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     .gcell.s-or { background: #e3edf5; color: #1a4769; box-shadow: inset 0 0 0 1px #1a476933; font-weight: 700; }
     .swatch.s-or { background: #e3edf5; border: 1px solid #1a476944; }
+    .gcell.edited[data-orig-cls="s-or"]::after { background: #1a4769; }
     @media print { .gcell.s-or { background: white !important; color: black !important; box-shadow: none !important; } }
     @media print { body.print-color .gcell.s-or { background: #e3edf5 !important; color: #1a4769 !important; box-shadow: inset 0 0 0 1px #1a476933 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     .gcell.vacation { background: #f4f1e8; color: #4a4a4a; box-shadow: inset 0 0 0 1px #d1cdbc; font-weight: 700; }
@@ -222,6 +291,11 @@
         <div class="print-actions">
             <button class="btn-subtle" onclick="window.print()">Print Schedule</button>
             <button class="btn-subtle" onclick="printInColor()">Print in Color</button>
+            <button class="btn-subtle" onclick="exportCsv()">Export CSV</button>
+            <span class="edits-bar" id="edits-bar">
+                <span id="edits-count">0 edits</span>
+                <button onclick="resetEdits()">Reset to solver</button>
+            </span>
         </div>
         <script>
             function printInColor() {
@@ -231,6 +305,231 @@
             window.addEventListener('afterprint', function () {
                 document.body.classList.remove('print-color');
             });
+
+            // ---- Drag-and-drop editing ----------------------------------
+            // Pills lock to their day column. Drop targets are cells on the
+            // same date that aren't vacation/block (data-locked). Swaps
+            // exchange shift/class/text; empty targets just move the pill.
+            // Final per-cell state is persisted in localStorage keyed by the
+            // fingerprint below — re-running the solver invalidates edits.
+            const FINGERPRINT = "43a33e6a7a49f16d";
+            const STORAGE_KEY = "niceschedule-edits:" + FINGERPRINT;
+
+            function cellKey(cell) {
+                return cell.dataset.date + "|" + cell.dataset.cid;
+            }
+
+            function applyCellState(cell, shift, cls) {
+                const oldCls = cell.dataset.shiftClass;
+                if (oldCls) cell.classList.remove(oldCls);
+                if (shift) {
+                    cell.classList.add(cls);
+                    cell.classList.remove('empty');
+                    cell.textContent = shift;
+                    cell.setAttribute('draggable', 'true');
+                    cell.dataset.shift = shift;
+                    cell.dataset.shiftClass = cls;
+                    cell.setAttribute('title', 'Call (edited) — drag up/down to reassign');
+                } else {
+                    cell.classList.add('empty');
+                    cell.textContent = '';
+                    cell.removeAttribute('draggable');
+                    delete cell.dataset.shift;
+                    delete cell.dataset.shiftClass;
+                    cell.removeAttribute('title');
+                }
+            }
+
+            function swapCells(src, dst) {
+                const srcShift = src.dataset.shift || '';
+                const srcCls = src.dataset.shiftClass || '';
+                const dstShift = dst.dataset.shift || '';
+                const dstCls = dst.dataset.shiftClass || '';
+                const srcCid = src.dataset.cid;
+                const dstCid = dst.dataset.cid;
+                applyCellState(src, dstShift, dstCls);
+                applyCellState(dst, srcShift, srcCls);
+                refreshEditedFlag(src);
+                refreshEditedFlag(dst);
+                recomputeTotals(srcCid);
+                recomputeTotals(dstCid);
+                saveState();
+            }
+
+            // A cell is "edited" only if its current shift differs from what
+            // the solver originally put there. Chain moves (A→B→C) leave B
+            // unmarked because B is back to its original empty state.
+            function refreshEditedFlag(cell) {
+                const origShift = cell.dataset.origShift || '';
+                const origCls = cell.dataset.origCls || '';
+                const curShift = cell.dataset.shift || '';
+                const curCls = cell.dataset.shiftClass || '';
+                if (curShift === origShift && curCls === origCls) {
+                    cell.classList.remove('edited');
+                } else {
+                    cell.classList.add('edited');
+                }
+            }
+
+            // Totals (Total + Weekend columns) are baked into the HTML by the
+            // solver. After a swap we recompute them client-side for the two
+            // doctors whose cells changed. Multi-shift cells ("OR / OB") count
+            // by the number of shifts, matching the Python aggregation.
+            function recomputeTotals(cid) {
+                if (!cid) return;
+                let total = 0, weekend = 0;
+                document.querySelectorAll('.gcell[data-cid="' + cid + '"]').forEach(cell => {
+                    const s = cell.dataset.shift;
+                    if (!s) return;
+                    const n = s.split(' / ').length;
+                    total += n;
+                    if (cell.classList.contains('weekend')) weekend += n;
+                });
+                const totalEl = document.querySelector(
+                    '.gtotal.col-total[data-cid="' + cid + '"]'
+                );
+                const weekendEl = document.querySelector(
+                    '.gtotal.col-weekend[data-cid="' + cid + '"]'
+                );
+                if (totalEl && totalEl.firstChild) totalEl.firstChild.nodeValue = String(total);
+                if (weekendEl && weekendEl.firstChild) weekendEl.firstChild.nodeValue = String(weekend);
+            }
+
+            function saveState() {
+                const cells = {};
+                document.querySelectorAll('.gcell.edited[data-date]').forEach(cell => {
+                    cells[cellKey(cell)] = {
+                        shift: cell.dataset.shift || null,
+                        cls: cell.dataset.shiftClass || null,
+                    };
+                });
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    fingerprint: FINGERPRINT, cells,
+                }));
+                updateEditsBar();
+            }
+
+            function loadState() {
+                let raw;
+                try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { return; }
+                if (!raw) return;
+                let parsed;
+                try { parsed = JSON.parse(raw); } catch (e) { return; }
+                if (!parsed || parsed.fingerprint !== FINGERPRINT) {
+                    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+                    return;
+                }
+                const touchedCids = new Set();
+                Object.entries(parsed.cells || {}).forEach(([key, val]) => {
+                    const [date, cid] = key.split('|');
+                    const cell = document.querySelector(
+                        '.gcell[data-date="' + date + '"][data-cid="' + cid + '"]'
+                    );
+                    if (cell && cell.dataset.locked !== 'true') {
+                        applyCellState(cell, val.shift || '', val.cls || '');
+                        refreshEditedFlag(cell);
+                        touchedCids.add(cid);
+                    }
+                });
+                touchedCids.forEach(recomputeTotals);
+                updateEditsBar();
+            }
+
+            function updateEditsBar() {
+                const bar = document.getElementById('edits-bar');
+                const count = document.getElementById('edits-count');
+                const edited = document.querySelectorAll('.gcell.edited').length;
+                if (edited > 0) {
+                    bar.classList.add('visible');
+                    count.textContent = edited + (edited === 1 ? ' edited cell' : ' edited cells');
+                } else {
+                    bar.classList.remove('visible');
+                }
+            }
+
+            function resetEdits() {
+                try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+                location.reload();
+            }
+
+            // Export the current grid (including any drag-and-drop edits) as
+            // a CSV matching the solver's schema: date,shift_type,clinician_id,name.
+            // Multi-shift cells expand to one row per shift.
+            function exportCsv() {
+                const nameByCid = {};
+                document.querySelectorAll('.gname[data-cid]').forEach(g => {
+                    nameByCid[g.dataset.cid] = g.textContent.trim();
+                });
+                const rows = [['date', 'shift_type', 'clinician_id', 'name']];
+                const cells = Array.from(document.querySelectorAll('.gcell[data-shift]'));
+                cells.sort((a, b) => {
+                    const dc = a.dataset.date.localeCompare(b.dataset.date);
+                    if (dc !== 0) return dc;
+                    return a.dataset.shift.localeCompare(b.dataset.shift);
+                });
+                for (const cell of cells) {
+                    const shifts = cell.dataset.shift.split(' / ');
+                    for (const s of shifts) {
+                        rows.push([cell.dataset.date, s, cell.dataset.cid, nameByCid[cell.dataset.cid] || cell.dataset.cid]);
+                    }
+                }
+                const csv = rows.map(r => r.map(v => {
+                    const s = String(v);
+                    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+                }).join(',')).join('\n');
+                const stamp = new Date().toISOString().slice(0, 10);
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'schedule-' + stamp + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            let dragSource = null;
+            document.addEventListener('dragstart', e => {
+                const cell = e.target.closest && e.target.closest('.gcell[draggable="true"]');
+                if (!cell) return;
+                dragSource = cell;
+                cell.classList.add('dragging');
+                if (e.dataTransfer) {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', cell.dataset.shift || '');
+                }
+            });
+            document.addEventListener('dragend', () => {
+                if (dragSource) dragSource.classList.remove('dragging');
+                document.querySelectorAll('.gcell.drop-target').forEach(c =>
+                    c.classList.remove('drop-target'));
+                dragSource = null;
+            });
+            function validTarget(cell) {
+                if (!dragSource || !cell || cell === dragSource) return false;
+                if (!cell.dataset.date) return false;
+                if (cell.dataset.date !== dragSource.dataset.date) return false;
+                if (cell.dataset.locked === 'true') return false;
+                return true;
+            }
+            document.addEventListener('dragover', e => {
+                const cell = e.target.closest && e.target.closest('.gcell[data-date]');
+                if (!validTarget(cell)) return;
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+                document.querySelectorAll('.gcell.drop-target').forEach(c =>
+                    c.classList.remove('drop-target'));
+                cell.classList.add('drop-target');
+            });
+            document.addEventListener('drop', e => {
+                const cell = e.target.closest && e.target.closest('.gcell[data-date]');
+                if (!validTarget(cell)) return;
+                e.preventDefault();
+                swapCells(dragSource, cell);
+            });
+
+            document.addEventListener('DOMContentLoaded', loadState);
         </script>
         <header>
             <div class="header-copy">
@@ -260,108 +559,108 @@
 <div class="gh totals col-total">Total</div>
 <div class="gh totals col-weekend">Weekend</div>
 
-                    <div class="gname">A. Fox</div>
-<div class="gcell s-or">OR</div>
-<div class="gcell empty"></div>
-<div class="gcell s-or">OR</div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell weekend empty"></div>
-<div class="gcell weekend s-or">OR</div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell s-or">OR</div>
-<div class="gcell empty"></div>
-<div class="gcell weekend empty"></div>
-<div class="gcell weekend s-or">OR</div>
-<div class="gtotal col-total">5<span class="target">/5</span></div>
-<div class="gtotal col-weekend">2<span class="target">/2</span></div>
-<div class="gname">C. Johns</div>
-<div class="gcell empty"></div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell empty"></div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell empty"></div>
-<div class="gcell weekend s-ob">OB</div>
-<div class="gcell weekend empty"></div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell empty"></div>
-<div class="gcell block">NO OB</div>
-<div class="gcell empty"></div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell weekend empty"></div>
-<div class="gcell weekend empty"></div>
-<div class="gtotal col-total">5<span class="target">/4</span></div>
-<div class="gtotal col-weekend">1<span class="target">/1</span></div>
-<div class="gname">J. Judy</div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell weekend empty"></div>
-<div class="gcell weekend s-ob">OB</div>
-<div class="gcell empty"></div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell weekend s-or">OR</div>
-<div class="gcell weekend empty"></div>
-<div class="gtotal col-total">5<span class="target">/5</span></div>
-<div class="gtotal col-weekend">2<span class="target">/2</span></div>
-<div class="gname">M. Cary</div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell s-or">OR</div>
-<div class="gcell vacation">VAC</div>
-<div class="gcell weekend vacation">VAC</div>
-<div class="gcell weekend vacation">VAC</div>
-<div class="gcell s-or">OR</div>
-<div class="gcell empty"></div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell weekend empty"></div>
-<div class="gcell weekend s-ob">OB</div>
-<div class="gtotal col-total">4<span class="target">/4</span></div>
-<div class="gtotal col-weekend">1<span class="target">/1</span></div>
-<div class="gname">R. Aken</div>
-<div class="gcell empty"></div>
-<div class="gcell s-or">OR</div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell weekend s-or">OR</div>
-<div class="gcell weekend empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell s-or">OR</div>
-<div class="gcell empty"></div>
-<div class="gcell s-or">OR</div>
-<div class="gcell weekend empty"></div>
-<div class="gcell weekend empty"></div>
-<div class="gtotal col-total">4<span class="target">/4</span></div>
-<div class="gtotal col-weekend">1<span class="target">/1</span></div>
-<div class="gname">S. Reed</div>
-<div class="gcell empty"></div>
-<div class="gcell block">NO CALL</div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell empty"></div>
-<div class="gcell s-or">OR</div>
-<div class="gcell weekend empty"></div>
-<div class="gcell weekend empty"></div>
-<div class="gcell empty"></div>
-<div class="gcell s-or">OR</div>
-<div class="gcell empty"></div>
-<div class="gcell s-ob">OB</div>
-<div class="gcell empty"></div>
-<div class="gcell weekend s-ob">OB</div>
-<div class="gcell weekend empty"></div>
-<div class="gtotal col-total">5<span class="target">/4</span></div>
-<div class="gtotal col-weekend">1<span class="target">/1</span></div>
+                    <div class="gname" data-cid="fox">A. Fox</div>
+<div class="gcell s-or" data-date="2026-06-01" data-cid="fox" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell empty" data-date="2026-06-02" data-cid="fox"></div>
+<div class="gcell s-or" data-date="2026-06-03" data-cid="fox" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell empty" data-date="2026-06-04" data-cid="fox"></div>
+<div class="gcell empty" data-date="2026-06-05" data-cid="fox"></div>
+<div class="gcell weekend empty" data-date="2026-06-06" data-cid="fox"></div>
+<div class="gcell weekend s-or" data-date="2026-06-07" data-cid="fox" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell empty" data-date="2026-06-08" data-cid="fox"></div>
+<div class="gcell empty" data-date="2026-06-09" data-cid="fox"></div>
+<div class="gcell empty" data-date="2026-06-10" data-cid="fox"></div>
+<div class="gcell s-or" data-date="2026-06-11" data-cid="fox" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell empty" data-date="2026-06-12" data-cid="fox"></div>
+<div class="gcell weekend empty" data-date="2026-06-13" data-cid="fox"></div>
+<div class="gcell weekend s-or" data-date="2026-06-14" data-cid="fox" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gtotal col-total" data-cid="fox">5<span class="target">/5</span></div>
+<div class="gtotal col-weekend" data-cid="fox">2<span class="target">/2</span></div>
+<div class="gname" data-cid="johns">C. Johns</div>
+<div class="gcell empty" data-date="2026-06-01" data-cid="johns"></div>
+<div class="gcell s-ob" data-date="2026-06-02" data-cid="johns" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell empty" data-date="2026-06-03" data-cid="johns"></div>
+<div class="gcell s-ob" data-date="2026-06-04" data-cid="johns" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell empty" data-date="2026-06-05" data-cid="johns"></div>
+<div class="gcell weekend s-ob" data-date="2026-06-06" data-cid="johns" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell weekend empty" data-date="2026-06-07" data-cid="johns"></div>
+<div class="gcell s-ob" data-date="2026-06-08" data-cid="johns" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell empty" data-date="2026-06-09" data-cid="johns"></div>
+<div class="gcell block" data-date="2026-06-10" data-cid="johns" data-locked="true">NO OB</div>
+<div class="gcell empty" data-date="2026-06-11" data-cid="johns"></div>
+<div class="gcell s-ob" data-date="2026-06-12" data-cid="johns" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell weekend empty" data-date="2026-06-13" data-cid="johns"></div>
+<div class="gcell weekend empty" data-date="2026-06-14" data-cid="johns"></div>
+<div class="gtotal col-total" data-cid="johns">5<span class="target">/4</span></div>
+<div class="gtotal col-weekend" data-cid="johns">1<span class="target">/1</span></div>
+<div class="gname" data-cid="judy">J. Judy</div>
+<div class="gcell s-ob" data-date="2026-06-01" data-cid="judy" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell empty" data-date="2026-06-02" data-cid="judy"></div>
+<div class="gcell empty" data-date="2026-06-03" data-cid="judy"></div>
+<div class="gcell empty" data-date="2026-06-04" data-cid="judy"></div>
+<div class="gcell s-ob" data-date="2026-06-05" data-cid="judy" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell weekend empty" data-date="2026-06-06" data-cid="judy"></div>
+<div class="gcell weekend s-ob" data-date="2026-06-07" data-cid="judy" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell empty" data-date="2026-06-08" data-cid="judy"></div>
+<div class="gcell s-ob" data-date="2026-06-09" data-cid="judy" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell empty" data-date="2026-06-10" data-cid="judy"></div>
+<div class="gcell empty" data-date="2026-06-11" data-cid="judy"></div>
+<div class="gcell empty" data-date="2026-06-12" data-cid="judy"></div>
+<div class="gcell weekend s-or" data-date="2026-06-13" data-cid="judy" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell weekend empty" data-date="2026-06-14" data-cid="judy"></div>
+<div class="gtotal col-total" data-cid="judy">5<span class="target">/5</span></div>
+<div class="gtotal col-weekend" data-cid="judy">2<span class="target">/2</span></div>
+<div class="gname" data-cid="cary">M. Cary</div>
+<div class="gcell empty" data-date="2026-06-01" data-cid="cary"></div>
+<div class="gcell empty" data-date="2026-06-02" data-cid="cary"></div>
+<div class="gcell empty" data-date="2026-06-03" data-cid="cary"></div>
+<div class="gcell s-or" data-date="2026-06-04" data-cid="cary" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell vacation" data-date="2026-06-05" data-cid="cary" data-locked="true">VAC</div>
+<div class="gcell weekend vacation" data-date="2026-06-06" data-cid="cary" data-locked="true">VAC</div>
+<div class="gcell weekend vacation" data-date="2026-06-07" data-cid="cary" data-locked="true">VAC</div>
+<div class="gcell s-or" data-date="2026-06-08" data-cid="cary" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell empty" data-date="2026-06-09" data-cid="cary"></div>
+<div class="gcell s-ob" data-date="2026-06-10" data-cid="cary" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell empty" data-date="2026-06-11" data-cid="cary"></div>
+<div class="gcell empty" data-date="2026-06-12" data-cid="cary"></div>
+<div class="gcell weekend empty" data-date="2026-06-13" data-cid="cary"></div>
+<div class="gcell weekend s-ob" data-date="2026-06-14" data-cid="cary" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gtotal col-total" data-cid="cary">4<span class="target">/4</span></div>
+<div class="gtotal col-weekend" data-cid="cary">1<span class="target">/1</span></div>
+<div class="gname" data-cid="aken">R. Aken</div>
+<div class="gcell empty" data-date="2026-06-01" data-cid="aken"></div>
+<div class="gcell s-or" data-date="2026-06-02" data-cid="aken" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell empty" data-date="2026-06-03" data-cid="aken"></div>
+<div class="gcell empty" data-date="2026-06-04" data-cid="aken"></div>
+<div class="gcell empty" data-date="2026-06-05" data-cid="aken"></div>
+<div class="gcell weekend s-or" data-date="2026-06-06" data-cid="aken" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell weekend empty" data-date="2026-06-07" data-cid="aken"></div>
+<div class="gcell empty" data-date="2026-06-08" data-cid="aken"></div>
+<div class="gcell empty" data-date="2026-06-09" data-cid="aken"></div>
+<div class="gcell s-or" data-date="2026-06-10" data-cid="aken" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell empty" data-date="2026-06-11" data-cid="aken"></div>
+<div class="gcell s-or" data-date="2026-06-12" data-cid="aken" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell weekend empty" data-date="2026-06-13" data-cid="aken"></div>
+<div class="gcell weekend empty" data-date="2026-06-14" data-cid="aken"></div>
+<div class="gtotal col-total" data-cid="aken">4<span class="target">/4</span></div>
+<div class="gtotal col-weekend" data-cid="aken">1<span class="target">/1</span></div>
+<div class="gname" data-cid="reed">S. Reed</div>
+<div class="gcell empty" data-date="2026-06-01" data-cid="reed"></div>
+<div class="gcell block" data-date="2026-06-02" data-cid="reed" data-locked="true">NO CALL</div>
+<div class="gcell s-ob" data-date="2026-06-03" data-cid="reed" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell empty" data-date="2026-06-04" data-cid="reed"></div>
+<div class="gcell s-or" data-date="2026-06-05" data-cid="reed" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell weekend empty" data-date="2026-06-06" data-cid="reed"></div>
+<div class="gcell weekend empty" data-date="2026-06-07" data-cid="reed"></div>
+<div class="gcell empty" data-date="2026-06-08" data-cid="reed"></div>
+<div class="gcell s-or" data-date="2026-06-09" data-cid="reed" draggable="true" data-shift="OR" data-shift-class="s-or" data-orig-shift="OR" data-orig-cls="s-or" title="Call (solver) — drag up/down to reassign within this day">OR</div>
+<div class="gcell empty" data-date="2026-06-10" data-cid="reed"></div>
+<div class="gcell s-ob" data-date="2026-06-11" data-cid="reed" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell empty" data-date="2026-06-12" data-cid="reed"></div>
+<div class="gcell weekend s-ob" data-date="2026-06-13" data-cid="reed" draggable="true" data-shift="OB" data-shift-class="s-ob" data-orig-shift="OB" data-orig-cls="s-ob" title="Call (solver) — drag up/down to reassign within this day">OB</div>
+<div class="gcell weekend empty" data-date="2026-06-14" data-cid="reed"></div>
+<div class="gtotal col-total" data-cid="reed">5<span class="target">/4</span></div>
+<div class="gtotal col-weekend" data-cid="reed">1<span class="target">/1</span></div>
 
                 </div>
             </div>
