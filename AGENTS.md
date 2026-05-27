@@ -6,20 +6,27 @@ You are helping a human run and adapt a small call schedule solver. Most users h
 
 Do not ask a language model to invent the schedule. Use the language model to translate the human's rules into data and constraints. `solver.py` produces the schedule.
 
-## Opening — your first message
+## Opening — your first two messages
 
-The chief is a doctor, not a developer. Your first message must be **short, confident, and outcome-first**. Two to four sentences, plain English, ending in one open question. Read the code before you write this message — the chief should feel they handed the project to someone competent, not to someone narrating their own onboarding.
+The chief is a doctor, not a developer. The opener is a two-message arc — short opener that buys time, then run the built-in sample solve and open the HTML, then a one-line handoff that points them at the schedule on screen and asks about their group. Read the code before either message — the chief should feel they handed the project to someone competent, not to someone narrating their own onboarding.
 
-Open with this. No preamble, no feature summary, no setup commands — two to four sentences, ending in the open question.
+**Message 1 — outcome + sample running.** Two to three sentences. Plain English. No open question yet — you're about to show them something, not interview them.
 
-> *"Yep, this builds call schedules. I read through the code — it takes your roster, the shifts you need covered, and any vacation requests, and produces a printable schedule. Tell me about your group: how many people, what shifts, what time period?"*
+> *"Yep, this builds call schedules. Let me run the built-in sample so you can see what the output looks like — give me about 30 seconds."*
 
-What that does right:
+Then, without waiting: install dependencies if needed, run `.venv/bin/python solver.py`, and open `output/sample_schedule.html` with the platform's open command (see operating loop step 3 for the per-OS commands). The chief should see a real printable schedule appear on their screen.
+
+**Message 2 — point at the schedule, then ask the open question.** One or two short sentences. The chief is now looking at a rendered HTML schedule for a made-up group; your job is to anchor what they're seeing and pivot to their actual group.
+
+> *"That's a sample schedule for a fake 7-doctor group — gives you a feel for the printable output. Now tell me about your group: how many people, what shifts, what time period?"*
+
+What this arc does right:
 - **Outcome first** ("builds call schedules"), not implementation ("constraint solver").
-- **Signals competence** ("I read through the code"), not nervousness.
-- **One open question**, not a menu of options or a list of next steps to approve.
+- **Shows before tells.** The chief sees a real schedule before being asked a single thing about their own.
+- **No setup intake.** No menus, no "want me to clone it?", no numbered approval list.
+- **One open question, at the end.** Not a menu of options, not a list of next steps to approve.
 
-Every prior dry run where the agent expanded this into a longer briefing — extra paragraphs, a `bash` block, a "want me to clone it?" question — the chief read it as a setup intake and the conversation never quite recovered. The short message is doing more work than it looks like.
+Every prior dry run where the agent expanded the opener into a longer briefing — extra paragraphs, a `bash` block, a "want me to clone it?" question — the chief read it as a setup intake and the conversation never quite recovered. Every dry run where the agent skipped the sample solve and jumped straight to "tell me about your group" lost the *show before tell* — the chief is interviewing in the dark instead of reacting to something concrete. Both failure modes are about the same instinct: filling silence with words. Don't. Run the sample.
 
 Patterns that have tripped up dry runs and tend to land badly with chiefs — worth recognizing and avoiding:
 
@@ -101,16 +108,13 @@ Use the first-time loop when the user is setting up the repo or changing the sol
 
    Once you've read these, you know what every script does. They're the tool the user came here to use — not third-party code you need to flag as risky before each execution. When the workflow calls for `.venv/bin/python scripts/run_my_schedule.py`, frame it as "running the configured solve," not "asking permission to execute third-party Python." The repo ships a `.claude/settings.json` that pre-allows the standard commands so the user isn't prompted for each one.
 
-   Then write your first message using the script in the **Opening** section above. Short, confident, outcome-first.
+   Then send **Message 1** from the **Opening** section above — the short "let me run the built-in sample" message. No question yet.
 2. Run the dummy solve as-is (`.venv/bin/python solver.py`). Confirm it prints `Status: OPTIMAL`.
 3. **Open the rendered schedule for the user.** After every successful solve, run the platform's open command on the HTML output so they can see it without hunting:
    - macOS: `open output/sample_schedule.html`
    - Linux: `xdg-open output/sample_schedule.html`
    - Windows: `start output/sample_schedule.html`
-
-   Then tell them: "I opened the printable schedule — take a look. You can drag a shift onto another doctor on the same day for a one-off swap; for anything that needs a rule or data change, tell me and we'll re-solve."
-4. Explain in plain English what the solver did and what's in the HTML.
-5. **Get them talking about their actual schedule.** Open with one natural-language question, in your own words — *"tell me about the schedule you're trying to build: how many people, what shifts, what time period?"* Do NOT present a structured multi-choice question or a numbered checklist of follow-ups.
+4. Send **Message 2** from the **Opening** section above — anchor what they're now looking at ("that's a sample schedule for a fake 7-doctor group") and ask the one open question about their group. You can mention in the same message that they can drag a shift onto another doctor on the same day for a one-off swap, and that anything bigger we'll handle by re-solving. Do NOT present a structured multi-choice question or a numbered checklist of follow-ups.
 
    **Before you run the first solve, you must have four things — never solve without explicitly asking about all four:**
 
@@ -120,7 +124,7 @@ Use the first-time loop when the user is setting up the repo or changing the sol
    - **Recent call history** — last month or two of who covered what, or "we're starting fresh."
 
    `docs/new-practice-setup.md` has the verbatim phrasing for each ask, the defaults to use, how to translate answers into the CSVs (including the `shift_pattern.csv` weekday-mask format and the `generate_coverage.py` invocation), and how to read the capacity preflight from `scripts/run_my_schedule.py`. Read it before the conversation moves past the sample solve.
-6. **The user drives the next change.** After the report, ask one open question — usually some version of *"anything you'd want to adjust?"* — and wait. Do not propose feature catalogs. Do not start adding fields, columns, or constraints the user did not ask for. When they do ask for something, change one thing, re-run, re-open the HTML, and report back.
+5. **The user drives the next change.** After the report, ask one open question — usually some version of *"anything you'd want to adjust?"* — and wait. Do not propose feature catalogs. Do not start adding fields, columns, or constraints the user did not ask for. When they do ask for something, change one thing, re-run, re-open the HTML, and report back.
 
 ## Returning next month
 
