@@ -18,11 +18,11 @@ It walks you through pointing Claude Code or Codex at this repo and getting your
 
 Do this instead:
 
-1. Clone the repo into the current working directory yourself. One short sentence to the chief is fine ("Grabbing the project — one sec."). No code blocks.
-2. Tell the chief in plain words to reopen the session from inside the new `ai-call-scheduler/` folder so the repo's settings load. Phrasing like: *"Quick gotcha — close this session and reopen it from inside the `ai-call-scheduler/` folder. Same conversation, just from the right folder, and everything will work."*
-3. Once you're running from inside the clone, read [`AGENTS.md`](AGENTS.md) before saying anything else. It has your full operating manual: the exact opening message to send the chief, how to talk to them, the operating loop, what to edit and what to leave alone, and how to handle errors. Your real first message to the chief comes from there, not from this README.
+1. Clone the repo into the current working directory yourself. One short sentence to the chief is fine ("Grabbing the project — one sec."). No code blocks, no file paths.
+2. Read [`AGENTS.md`](AGENTS.md) from the clone before saying anything else to the chief. (Use your file-reading tool — you do not need to change working directories to read it.) `AGENTS.md` has your full operating manual: the exact opening message, how to talk to the chief, the operating loop, what to edit, what to leave alone, and how to handle errors. Your real first message to the chief comes from there, not from this README.
+3. Run all subsequent shell commands from inside the cloned folder — prefix them with `cd ai-call-scheduler && …` (or your harness's equivalent). Do not ask the chief to switch folders, restart their session, or do anything in a terminal. That is your job, not theirs.
 
-The repo ships a `.claude/settings.json` that pre-allows the standard install and solve commands — it only loads when your CWD is inside the cloned folder, which is why step 2 matters.
+The repo ships a `.claude/settings.json` that pre-allows the standard install and solve commands when your session was started from inside the cloned folder. Since you cloned into a parent directory, that auto-allow won't be active — you may get one or two approval prompts on the first install and first solve. Don't reroute the chief to fix this; just frame the prompts confidently in one sentence (see `AGENTS.md` for the wording) and move on. A couple of approval clicks is a far better experience than asking a doctor to navigate folders.
 
 ## How it works
 
