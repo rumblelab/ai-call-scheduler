@@ -8,6 +8,9 @@
 
 Deterministic on-call schedules for medical groups. Hand it a roster, the shifts to cover, and any time-off requests; it produces a printable, drag-and-drop-editable HTML schedule that respects every hard rule and balances totals, weekends, and recent history.
 
+<!-- TODO(media): hero screenshot — a single PNG of the rendered printable HTML schedule (output/sample_schedule.html) so a visitor sees the deliverable above the fold. Suggested path: img/sample-schedule-hero.png, width ~860. -->
+<!-- ![A printable on-call schedule rendered as a month grid with one doctor per shift, color-coded by shift type.](img/sample-schedule-hero.png) -->
+
 The schedule itself is computed by [Google's OR-Tools](https://developers.google.com/optimization) — open-source, the same engine Google uses for its own logistics — so it doesn't hallucinate. AI is used only to translate human rules into the solver's input, never to invent the schedule. Inspired by [this r/Residency thread](https://www.reddit.com/r/Residency/comments/1r4zdjx/for_all_the_seniorchief_residents_how_do_you_make/) where the top reply said no AI could do it.
 
 ## I'm a chief, not a developer
@@ -30,7 +33,12 @@ python solver.py
 open output/sample_schedule.html   # macOS — xdg-open / start on Linux / Windows
 ```
 
-That runs the built-in sample — a fake 7-doctor group — and opens the printable HTML output. To adapt it to your own group, the friction-free path is to paste the [agent handoff prompt](https://niceschedule.com/how-to-make-a-schedule-with-ai/#agent) into Claude Code or Codex; the agent reads [`AGENTS.md`](AGENTS.md) and drives the setup. The manual path is [`docs/new-practice-setup.md`](docs/new-practice-setup.md).
+That runs the built-in sample — a fake 7-doctor group — and opens the printable HTML output.
+
+<!-- TODO(media): demo GIF — ~30-second silent screen capture of the agent-driven flow: chief pastes the handoff prompt into Claude Code or Codex, agent clones, runs the sample solve, the printable schedule pops open. This is the "show before tell" for visitors who don't want to read. Suggested path: img/agent-demo.gif, width ~720. -->
+<!-- ![A coding agent clones the repo, runs the sample solve, and opens the printable schedule.](img/agent-demo.gif) -->
+
+To adapt it to your own group, the friction-free path is to paste the [agent handoff prompt](https://niceschedule.com/how-to-make-a-schedule-with-ai/#agent) into Claude Code or Codex; the agent reads [`AGENTS.md`](AGENTS.md) and drives the setup. The manual path is [`docs/new-practice-setup.md`](docs/new-practice-setup.md).
 
 ## What it handles
 
@@ -56,6 +64,10 @@ Worked examples for adapting it to a real group — holiday rotation, partner al
 ## How it works
 
 A small CP-SAT model in [`solver.py`](solver.py) reads four CSVs from `data/sample/` — `clinicians`, `coverage`, `requests`, `history` — and writes an assignment list plus a printable HTML grid to `output/`. The solve is reproducible per (year, month) seed.
+
+<!-- TODO(media): architecture diagram — simple horizontal flow: "Chief's rules in plain English" → "AI translates to CSVs" → "solver.py (CP-SAT)" → "printable HTML". The point is to make the AI-vs-solver split visually obvious: LLM doesn't make the schedule; solver does. Suggested path: img/architecture.svg, width ~720. -->
+<!-- ![Architecture diagram: chief's rules in plain English flow through an AI translator into CSVs, which feed the CP-SAT solver, which writes a printable HTML schedule.](img/architecture.svg) -->
+
 
 | Doc | Purpose |
 | --- | --- |
