@@ -11,7 +11,9 @@ Deterministic on-call schedules for medical groups. Hand it a roster, the shifts
 <!-- TODO(media): hero screenshot — a single PNG of the rendered printable HTML schedule (output/sample_schedule.html) so a visitor sees the deliverable above the fold. Suggested path: img/sample-schedule-hero.png, width ~860. -->
 <!-- ![A printable on-call schedule rendered as a month grid with one doctor per shift, color-coded by shift type.](img/sample-schedule-hero.png) -->
 
-The schedule itself is computed by [Google's OR-Tools](https://developers.google.com/optimization) — open-source, the same engine Google uses for its own logistics — so it doesn't hallucinate. AI is used only to translate human rules into the solver's input, never to invent the schedule. Inspired by [this r/Residency thread](https://www.reddit.com/r/Residency/comments/1r4zdjx/for_all_the_seniorchief_residents_how_do_you_make/) where the top reply said no AI could do it.
+The schedule itself is computed by [Google's OR-Tools](https://developers.google.com/optimization) — open-source, the same engine Google uses for its own logistics — so it doesn't hallucinate. AI is used only to translate human rules into the solver's input, never to invent the schedule. Inspired by [this r/Residency thread](https://www.reddit.com/r/Residency/comments/1r4zdjx/for_all_the_seniorchief_residents_how_do_you_make/) where the top reply said no AI could do it:
+
+![Top reply on the r/Residency thread that inspired this repo, screenshot of a Reddit comment that reads roughly: "As someone who did this, there is no replacement for just getting done on Excel. No AI is going to do a better job." Two words struck through for tone; original language preserved in the linked thread.](img/call-schedule-answer.png)
 
 ## I'm a chief, not a developer
 
