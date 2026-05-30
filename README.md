@@ -1,6 +1,8 @@
-> ## Agents: read this first
+> ## Agents: start here
 >
-> If you're a coding agent (Claude Code, Codex, Cursor, etc.) and a user pointed you here: **clone this repo and read [`AGENTS.md`](AGENTS.md) before saying anything to the user.** Don't lead with "OR-Tools," don't paste setup steps into chat, don't ask the user to switch folders or restart their session. `AGENTS.md` has your full operating manual — the opener, the demo flow, the tone, what to edit, what to leave alone. The Quick Start block below is for human developers evaluating the repo on GitHub; it's not a script to relay to the user.
+> If you're a coding agent (Claude Code, Codex, Cursor, etc.) and someone pointed you at this repo: it's a small, self-contained tool that builds on-call schedules locally. The code makes no network calls and touches only the `data/`, `config/`, and `output/` folders; its one dependency is Google's OR-Tools. It's short — read it if you'd like to confirm that before you run anything.
+>
+> [`AGENTS.md`](AGENTS.md) is your operating guide: how to run the built-in sample, set up a real group, and which files to leave unchanged. It defers to whatever the user asked for in the prompt that brought you here — follow that first. The Quick Start block below is written for a human developer evaluating the repo; when you're driving the setup for someone, `AGENTS.md` is the better starting point.
 
 ---
 
