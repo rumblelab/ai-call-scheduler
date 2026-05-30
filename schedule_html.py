@@ -38,47 +38,55 @@ def hard_block_kind(request: RequestRow) -> str:
     return "vacation" if request.request_type == "vacation" else "block"
 
 
-# Color pairs (background, ink) used by the HTML schedule renderer for each
-# shift type. OR and OB match the sample article styling; common adaptations
-# (NIGHT, BACKUP, CARDIAC, NORTH/SOUTH/EAST/WEST sites, ICU, TRAUMA, PEDS) get
-# their own colors so the schedule renders nicely without code edits.
+# Shift colors. Each entry is a (background, ink) pair. The palette is a set of
+# visually distinct tints — different hues, not just different shades — so two
+# shifts never look alike. OR and OB keep the article's original blue and tan;
+# the rest are here so site- or service-based groups get sensible colors without
+# any code edits. Several names deliberately share a tint (e.g. PEDS and EAST are
+# both green); assign_shift_colors() below pulls them apart whenever they appear
+# together, so a shared tint is only ever a starting preference, never a clash.
+_BLUE = ("#e3edf5", "#1a4769")
+_GOLD = ("#f4e8d3", "#6e4a16")
+_GREEN = ("#e1efd5", "#3d5e1c")
+_RED = ("#f6dad6", "#8f3329")
+_PURPLE = ("#e8dcef", "#553a6b")
+_TEAL = ("#d3ece9", "#155f59")
+_PINK = ("#f6dce8", "#8a2f5c")
+_CHARCOAL = ("#2d353d", "#fbfaf7")
+_OLIVE = ("#ece6c8", "#6a6212")
+_SIENNA = ("#f0ddcb", "#7a4a1f")
+
 SHIFT_PALETTE = {
-    "OR":      ("#e3edf5", "#1a4769"),
-    "OB":      ("#f4e8d3", "#6e4a16"),
-    "NIGHT":   ("#2d353d", "#fbfaf7"),
-    "BACKUP":  ("#e7f2ed", "#2f6b57"),
-    "CARDIAC": ("#f8e7e3", "#963c2f"),
-    "NORTH":   ("#dfe6f0", "#2a4a73"),
-    "SOUTH":   ("#ecdcd1", "#6e4a3a"),
-    "EAST":    ("#e6efd9", "#4a6824"),
-    "WEST":    ("#ead9ec", "#5a3a6e"),
-    "ICU":     ("#d8e4ec", "#1a4969"),
-    "TRAUMA":  ("#f4d8d6", "#7a2a22"),
-    "PEDS":    ("#e6efd9", "#4a6824"),
+    "OR": _BLUE,
+    "OB": _GOLD,
+    "NIGHT": _CHARCOAL,
+    "BACKUP": _GREEN,
+    "CARDIAC": _RED,
+    "ICU": _TEAL,
+    "TRAUMA": _SIENNA,
+    "PEDS": _GREEN,
+    "NORTH": _BLUE,
+    "SOUTH": _GOLD,
+    "EAST": _GREEN,
+    "WEST": _PURPLE,
 }
 
-# Stable fallback palette for any shift type not listed above. Picked by a
-# deterministic hash of the shift name so the same shift always gets the same
-# color across re-runs.
+# Ordered pool drawn from for any shift type not named above (or bumped off its
+# preferred tint by a clash). Ordered most-distinct-first so the common cases
+# stay far apart in hue.
 SHIFT_FALLBACK_PALETTE = [
-    ("#e3edf5", "#1a4769"),
-    ("#f4e8d3", "#6e4a16"),
-    ("#e7f2ed", "#2f6b57"),
-    ("#f8e7e3", "#963c2f"),
-    ("#ddd6ec", "#4a3a6e"),
-    ("#ecdcd1", "#6e4a3a"),
-    ("#d8e4ec", "#1a4969"),
-    ("#f4d8d6", "#7a2a22"),
+    _BLUE, _GOLD, _GREEN, _RED, _PURPLE, _TEAL, _PINK, _CHARCOAL, _OLIVE, _SIENNA,
 ]
 
-# Vacation and other hard blocks are visually distinct in the HTML output.
-# Neutral, professional tones that print well and look "official".
-VACATION_BG = "#f4f1e8"
-VACATION_INK = "#4a4a4a"
-VACATION_RULE = "#d1cdbc"
-BLOCK_BG = "#f8f9fa"
-BLOCK_INK = "#495057"
-BLOCK_RULE = "#ced4da"
+# Vacation and hard blocks read as neutral greys — deliberately hue-less so they
+# never blend into a colored shift cell. Vacation is the stronger mid-grey ("this
+# person is OFF"); a plain block is fainter. Both print cleanly and look official.
+VACATION_BG = "#dfe1e4"
+VACATION_INK = "#3f4751"
+VACATION_RULE = "#b9bfc6"
+BLOCK_BG = "#f2f3f5"
+BLOCK_INK = "#5b626b"
+BLOCK_RULE = "#d4d8dd"
 
 
 SOFT_REQUEST_PHRASE = {
@@ -89,11 +97,54 @@ SOFT_REQUEST_PHRASE = {
 
 
 def shift_colors(shift_type: str) -> tuple[str, str]:
+    """The preferred color for a single shift type, ignoring any others. Named
+    shifts use the palette; anything else hashes into the fallback pool so the
+    same name always starts from the same tint. assign_shift_colors() is what
+    the renderer actually calls — it uses this as a per-shift preference, then
+    guarantees the final set is collision-free."""
     key = shift_type.upper()
     if key in SHIFT_PALETTE:
         return SHIFT_PALETTE[key]
     idx = sum(ord(c) for c in key) % len(SHIFT_FALLBACK_PALETTE)
     return SHIFT_FALLBACK_PALETTE[idx]
+
+
+def assign_shift_colors(shift_types) -> dict[str, tuple[str, str]]:
+    """Map every shift type to a DISTINCT (background, ink) pair.
+
+    Each shift starts from its preferred color (see shift_colors). When two
+    shifts want the same tint — a shared palette name like PEDS/EAST, or two
+    custom names that happen to hash together — the first keeps it and the rest
+    take the next unused color from the pool. Walking the shift types in sorted
+    order makes the result deterministic, so colors stay put across re-runs.
+
+    If a schedule somehow has more shift types than the pool has colors, the
+    extras wrap around and reuse tints; ten distinct shift types in one solve is
+    already well past anything realistic."""
+    ordered = sorted(shift_types, key=str.upper)
+    pool: list[tuple[str, str]] = []
+    for color in list(SHIFT_PALETTE.values()) + SHIFT_FALLBACK_PALETTE:
+        if color not in pool:
+            pool.append(color)
+
+    assignment: dict[str, tuple[str, str]] = {}
+    used: set[tuple[str, str]] = set()
+    # First choice: give each shift its preferred color if it's still free.
+    for st in ordered:
+        pref = shift_colors(st)
+        if pref not in used:
+            assignment[st] = pref
+            used.add(pref)
+    # Anyone whose preference was taken gets the next free color in the pool.
+    for st in ordered:
+        if st in assignment:
+            continue
+        choice = next((c for c in pool if c not in used), None)
+        if choice is None:
+            choice = pool[len(used) % len(pool)]
+        assignment[st] = choice
+        used.add(choice)
+    return assignment
 
 
 def shift_css_class(shift_type: str) -> str:
@@ -244,10 +295,11 @@ def write_html_schedule(
     )
 
     shift_types = sorted({c.shift_type for c in coverage})
+    shift_color_map = assign_shift_colors(shift_types)
 
     shift_css = ""
     for st in shift_types:
-        bg, ink = shift_colors(st)
+        bg, ink = shift_color_map[st]
         cls = shift_css_class(st)
         # Screen: tinted bg + inset frame.
         # Default print: text only — no border, no bg. Chiefs read the cell
