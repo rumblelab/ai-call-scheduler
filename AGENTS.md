@@ -31,7 +31,7 @@ Once you've looked, treat these scripts as the tool the user came here for, not 
 - `schedule_html.py` — how the printable schedule looks and what the post-solve summary says.
 - `config/sample_rules.json` (drives the sample) and `config/my_rules.template.json` (starting point for a real group) — input/output paths and preference weights.
 - `docs/` — `csv-schema.md` (every column), `new-practice-setup.md` (first real group), `adaptation-cookbook.md` (worked rule examples), `troubleshooting.md`, `scheduler-agent-skill.md` (rule-translation patterns), `agent-privacy.md`.
-- `data/sample/` — the fake 7-doctor group. `data/template/` — blank files to copy into `data/my_data/`.
+- `data/sample/` — the fake 6-doctor group. `data/template/` — blank files to copy into `data/my_data/`.
 
 Read `docs/scheduler-agent-skill.md` and `docs/csv-schema.md` before translating a real group's rules; read `docs/new-practice-setup.md` before the first real solve.
 

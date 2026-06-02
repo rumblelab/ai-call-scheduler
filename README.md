@@ -41,7 +41,7 @@ python solver.py
 open output/sample_schedule.html   # macOS — xdg-open / start on Linux / Windows
 ```
 
-That runs the built-in sample — a fake 7-doctor group — and opens the printable HTML output.
+That runs the built-in sample — a fake 6-doctor group — and opens the printable HTML output.
 
 <!-- TODO(media): demo GIF — ~30-second silent screen capture of the agent-driven flow: chief pastes the handoff prompt into Claude Code or Codex, agent clones, runs the sample solve, the printable schedule pops open. This is the "show before tell" for visitors who don't want to read. Suggested path: img/agent-demo.gif, width ~720. -->
 <!-- ![A coding agent clones the repo, runs the sample solve, and opens the printable schedule.](img/agent-demo.gif) -->
