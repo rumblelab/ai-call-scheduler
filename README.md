@@ -8,10 +8,14 @@
 
 # AI Call Scheduler
 
+[![CI](https://github.com/niceschedule/ai-call-scheduler/actions/workflows/ci.yml/badge.svg)](https://github.com/niceschedule/ai-call-scheduler/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Deterministic on-call schedules for medical groups. Hand it a roster, the shifts to cover, and any time-off requests; it produces a printable, drag-and-drop-editable HTML schedule that respects every hard rule and balances totals, weekends, and recent history.
 
-<!-- TODO(media): hero screenshot — a single PNG of the rendered printable HTML schedule (output/sample_schedule.html) so a visitor sees the deliverable above the fold. Suggested path: img/sample-schedule-hero.png, width ~860. -->
-<!-- ![A printable on-call schedule rendered as a month grid with one doctor per shift, color-coded by shift type.](img/sample-schedule-hero.png) -->
+![A printable two-week on-call schedule: a color-coded grid for a sample six-clinician group, with per-person shift and weekend totals, a legend, and a plain-English summary.](img/sample-schedule-hero.png)
+
+*If this saved your group a weekend, a ⭐ helps other schedulers find it.*
 
 The schedule itself is computed by [Google's OR-Tools](https://developers.google.com/optimization) — open-source, the same engine Google uses for its own logistics — so it doesn't hallucinate. AI is used only to translate human rules into the solver's input, never to invent the schedule. Inspired by [this r/Residency thread](https://www.reddit.com/r/Residency/comments/1r4zdjx/for_all_the_seniorchief_residents_how_do_you_make/) where the top reply said no AI could do it:
 
@@ -27,10 +31,10 @@ It walks you through pointing Claude Code or Codex at this repo and getting your
 
 ## Quick start
 
-For developers evaluating the repo. Five minutes from clone to a rendered sample schedule on screen.
+For developers evaluating the repo. Five minutes from clone to a rendered sample schedule on screen. Requires Python 3.10+ (tested on 3.12 with OR-Tools 9.15).
 
 ```bash
-git clone https://github.com/rumblelab/ai-call-scheduler.git
+git clone https://github.com/niceschedule/ai-call-scheduler.git
 cd ai-call-scheduler
 pip install -r requirements.txt
 python solver.py
@@ -81,6 +85,14 @@ A small CP-SAT model in [`solver.py`](solver.py) reads four CSVs from `data/samp
 | [`docs/scheduler-agent-skill.md`](docs/scheduler-agent-skill.md) | Rule-translation patterns for agents. |
 | [`docs/new-practice-setup.md`](docs/new-practice-setup.md) | First-time setup for a real group. |
 | [`docs/agent-privacy.md`](docs/agent-privacy.md) | Brief privacy disclosure. |
+
+## Tests
+
+A smoke test runs the sample solve and checks it reports `OPTIMAL` and writes the schedule files — the same check CI runs on every push:
+
+```bash
+python tests/smoke_test.py
+```
 
 ## Known limitations
 
