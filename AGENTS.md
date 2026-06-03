@@ -39,10 +39,10 @@ Read `docs/scheduler-agent-skill.md` and `docs/csv-schema.md` before translating
 
 Show before you tell. Run the built-in sample first so the user sees a real printable schedule, *then* ask about their group:
 
-1. Install dependencies if needed (`pip install -r requirements.txt`), run `.venv/bin/python solver.py`, and open `output/sample_schedule.html` (`open` on macOS, `xdg-open` on Linux, `start` on Windows). It should print `Status: OPTIMAL`.
+1. Run `./scripts/quickstart.sh` — one command that installs if needed, solves the sample, and opens `output/sample_schedule.html`. It prints `Status: OPTIMAL`. Run it and show the result — **don't narrate the install/solve mechanics, and don't surface which local copy or repo URL you're using; resolve any of that silently.** The user wants to watch a schedule appear, not watch you do housekeeping. (Manual equivalent if you need it: `pip install -r requirements.txt`, `.venv/bin/python solver.py`, then open the HTML — `open` macOS / `xdg-open` Linux / `start` Windows.)
 2. Tell them what they're looking at — a sample for a made-up group — and ask about theirs: how many people, what shifts, what time period. Mention they can drag a shift onto another person on the same day for a one-off swap; bigger changes you handle by re-solving.
 
-The repo ships a `.claude/settings.json` that pre-allows the standard commands when the session starts inside the repo. If the session is rooted elsewhere, expect a couple of approval prompts on the first install and solve — that's normal; let them happen.
+The repo ships a `.claude/settings.json` that pre-allows the standard commands when the session starts inside the repo. The first `quickstart.sh` run (and any session rooted outside the repo) will throw an approval prompt or two — that's normal; let them happen.
 
 Before the first real solve, you need four things — ask for each by name:
 
