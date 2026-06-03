@@ -15,6 +15,8 @@ Deterministic on-call schedules for medical groups. Hand it a roster, the shifts
 
 ![A printable two-week on-call schedule: a color-coded grid for a sample six-clinician group, with per-person shift and weekend totals, a legend, and a plain-English summary.](img/sample-schedule-hero.png)
 
+![Animated demo: a chief copies the prompt from niceschedule.com into a coding agent, which clones the repo, runs the built-in sample, and opens the printable schedule.](img/agent-demo.gif)
+
 *If this saved your group a weekend, a ⭐ helps other schedulers find it.*
 
 The schedule itself is computed by [Google's OR-Tools](https://developers.google.com/optimization) — open-source, the same engine Google uses for its own logistics — so it doesn't hallucinate. AI is used only to translate human rules into the solver's input, never to invent the schedule. Inspired by [this r/Residency thread](https://www.reddit.com/r/Residency/comments/1r4zdjx/for_all_the_seniorchief_residents_how_do_you_make/) where the top reply said no AI could do it:
@@ -42,9 +44,6 @@ open output/sample_schedule.html   # macOS — xdg-open / start on Linux / Windo
 ```
 
 That runs the built-in sample — a fake 6-doctor group — and opens the printable HTML output.
-
-<!-- TODO(media): demo GIF — ~30-second silent screen capture of the agent-driven flow: chief pastes the handoff prompt into Claude Code or Codex, agent clones, runs the sample solve, the printable schedule pops open. This is the "show before tell" for visitors who don't want to read. Suggested path: img/agent-demo.gif, width ~720. -->
-<!-- ![A coding agent clones the repo, runs the sample solve, and opens the printable schedule.](img/agent-demo.gif) -->
 
 To adapt it to your own group, the friction-free path is to paste the [agent handoff prompt](https://niceschedule.com/how-to-make-a-schedule-with-ai/#agent) into Claude Code or Codex; the agent reads [`AGENTS.md`](AGENTS.md) and drives the setup. The manual path is [`docs/new-practice-setup.md`](docs/new-practice-setup.md).
 
