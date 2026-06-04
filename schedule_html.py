@@ -439,12 +439,16 @@ def write_html_schedule(
     .subtitle { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; }
 
     .grid-frame { border: 1px solid var(--rule-strong); background: #fff; }
-    .grid-frame-scroll { overflow-x: auto; }
+    /* padding-bottom keeps macOS overlay scrollbars from sitting on top of
+       the last row when the grid is wider than the viewport. */
+    .grid-frame-scroll { overflow-x: auto; padding-bottom: 14px; }
     .grid-schedule {
       display: grid;
-      grid-template-columns: 140px repeat(var(--n-days), minmax(48px, 1fr)) 60px 60px;
-      width: max-content;
-      min-width: 100%;
+      /* minmax(0, 1fr) lets day cells shrink to fit any viewport — a 31-day
+         month at the previous 48px minimum forced horizontal scroll on most
+         laptops. Chip labels stay short (3-char shift codes); on narrow
+         viewports the cells just compress further rather than overflowing. */
+      grid-template-columns: 140px repeat(var(--n-days), minmax(0, 1fr)) 60px 60px;
     }
     .gh {
       padding: 8px 4px;
@@ -481,6 +485,12 @@ def write_html_schedule(
       padding: 4px;
       border-bottom: 1px solid var(--rule);
       border-right: 1px solid var(--rule);
+      /* Keep a chip label contained within its own cell. Without this, a
+         shift name wider than the column (e.g. "RMC_CALL" in the dense print
+         layout) renders past the cell edge and over the neighboring day.
+         nowrap stops it wrapping to a second line and inflating row height. */
+      overflow: hidden;
+      white-space: nowrap;
     }
     .gcell.weekend { background: #fafafa; }
     .gcell.empty { color: #eee; }
@@ -655,6 +665,10 @@ def write_html_schedule(
         width: 100%;
       }
       .gh { padding: 4px 2px; font-size: 8px; border-width: 0.5pt; position: static; }
+      /* Higher-specificity reset: .gh.corner / .gh.col-total / .gh.col-weekend
+         have position: sticky for on-screen scrolling, which Chrome's print
+         engine then anchors mid-page. Force them back to static for print. */
+      .gh.corner, .gh.col-total, .gh.col-weekend { position: static; }
       .gname { padding: 4px; font-size: 8px; position: static; border-width: 0.5pt; border-right-width: 1.2pt; }
       .gcell { min-height: 20px; padding: 1px; border-width: 0.5pt; }
       .gtotal { padding: 2px; font-size: 8px; position: static; border-width: 0.5pt; border-left-width: 1.2pt; }
