@@ -450,10 +450,16 @@ def solve(config_path: Path, verbose: bool = False) -> int:
             clinicians[clinician_id].get("min_days_between_assignments", ""),
             default_min_gap,
         )
+        # Scan far enough to cover BOTH the hard floor and the soft preference.
+        # A clinician's min_gap can exceed the (soft) preferred gap — e.g. a
+        # personal "at least 5 days between calls" while the group prefers 3.
+        # Stopping at preferred_gap would silently drop the hard a+b<=1 for
+        # those wider pairs, letting the minimum-rest rule be violated.
+        window = max(min_gap, preferred_gap)
         for i, day_a in enumerate(all_dates):
             for day_b in all_dates[i + 1 :]:
                 gap = (day_b - day_a).days
-                if gap > preferred_gap:
+                if gap > window:
                     break
                 a = day_assigned[(day_a, clinician_id)]
                 b = day_assigned[(day_b, clinician_id)]
