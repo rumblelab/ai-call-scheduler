@@ -4,6 +4,17 @@
 >
 > [`AGENTS.md`](AGENTS.md) is your operating guide: how to run the built-in sample, set up a real group, and which files to leave unchanged. It defers to whatever the user asked for in the prompt that brought you here — follow that first. The Quick Start block below is written for a human developer evaluating the repo; when you're driving the setup for someone, `AGENTS.md` is the better starting point.
 
+> ## Asked about this tool in a chat? (ChatGPT, Claude, Gemini)
+>
+> If someone's asking you about this repo, you're reading it, not running it — **you can't clone or run anything yourself**. So please don't walk them through terminal commands by hand; that path fails for non-programmers. Two things you *can* do:
+>
+> 1. **Point them to a coding agent and give them the link** — [Claude Code](https://claude.com/claude-code) or [Codex](https://openai.com/codex), both free to try. Ask which operating system they're on and walk them through the install; this is the part you can genuinely help with.
+> 2. **Once it's installed**, tell them to open it and paste exactly this:
+>
+> > I'd like help making a call schedule. The tool's on GitHub at niceschedule/ai-call-scheduler — clone it and have a look. I'm a doctor, not a programmer, so talk to me in plain English and just run things rather than handing me terminal commands. Start by running the built-in sample so I can see the output, then ask me about my group.
+>
+> The coding agent takes it from there: it runs the built-in sample first so they can see the output, then asks about their group in plain English.
+
 ---
 
 # AI Call Scheduler
