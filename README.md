@@ -24,6 +24,8 @@
 
 Deterministic on-call schedules for medical groups. Hand it a roster, the shifts to cover, and any time-off requests; it produces a printable, drag-and-drop-editable HTML schedule that respects every hard rule and balances totals, weekends, and recent history.
 
+This is the open-source base of [Nice Schedule](https://niceschedule.com/). The production solver that has published [Trident Anesthesia's](https://niceschedule.com/customers/trident-anesthesia/) monthly call schedule since November 2025 — twenty-five physicians, two hospitals, six surgery centers — builds on what is in this repo.
+
 ![A printable two-week on-call schedule: a color-coded grid for a sample six-clinician group, with per-person shift and weekend totals, a legend, and a plain-English summary.](img/sample-schedule-hero.png)
 
 ![Animated demo: a chief copies the prompt from niceschedule.com into a coding agent, which clones the repo, runs the built-in sample, and opens the printable schedule.](img/agent-demo.gif)
@@ -119,6 +121,10 @@ If you want any of that out of the box — or you want this run for you — see 
 ## Privacy
 
 The solver runs locally on your machine. Chat and coding-agent context may still be sent to your AI provider. Real display names are fine if that fits your workflow; use synthetic IDs for public examples or sensitive setups. Longer version in [`docs/agent-privacy.md`](docs/agent-privacy.md).
+
+## Stuck, or found a bug?
+
+[Open an issue](https://github.com/niceschedule/ai-call-scheduler/issues) — "my month won't solve" questions welcome; infeasible months are the interesting ones. Or email [moultrie@niceschedule.com](mailto:moultrie@niceschedule.com) and a person answers. [`docs/troubleshooting.md`](docs/troubleshooting.md) covers every error the tool itself can raise.
 
 ## License
 

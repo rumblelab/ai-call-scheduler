@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If this tool contributed to a schedule, a QI project, or an abstract, cite it as below."
+title: "ai-call-scheduler"
+type: software
+authors:
+  - family-names: Ball
+    given-names: Moultrie
+license: MIT
+repository-code: "https://github.com/niceschedule/ai-call-scheduler"
+url: "https://niceschedule.com/how-to-make-a-schedule-with-ai/"
+version: 1.0.0
+date-released: "2026-06-10"
