@@ -85,8 +85,7 @@ Worked examples for adapting it to a real group — holiday rotation, partner al
 
 A small CP-SAT model in [`solver.py`](solver.py) reads four CSVs from `data/sample/` — `clinicians`, `coverage`, `requests`, `history` — and writes an assignment list plus a printable HTML grid to `output/`. The solve is reproducible per (year, month) seed.
 
-<!-- TODO(media): architecture diagram — simple horizontal flow: "Chief's rules in plain English" → "AI translates to CSVs" → "solver.py (CP-SAT)" → "printable HTML". The point is to make the AI-vs-solver split visually obvious: LLM doesn't make the schedule; solver does. Suggested path: img/architecture.svg, width ~720. -->
-<!-- ![Architecture diagram: chief's rules in plain English flow through an AI translator into CSVs, which feed the CP-SAT solver, which writes a printable HTML schedule.](img/architecture.svg) -->
+![Architecture diagram: chief's rules in plain English flow through an AI translator into CSVs, which feed the CP-SAT solver, which writes a printable HTML schedule. The AI never builds the schedule; the solver does.](img/architecture.svg)
 
 
 | Doc | Purpose |
