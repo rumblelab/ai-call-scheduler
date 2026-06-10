@@ -28,6 +28,8 @@ This is the open-source base of [Nice Schedule](https://niceschedule.com/). The 
 
 ![A printable two-week on-call schedule: a color-coded grid for a sample six-clinician group, with per-person shift and weekend totals, a legend, and a plain-English summary.](img/sample-schedule-hero.png)
 
+**[Poke at this exact schedule, live →](https://niceschedule.com/sample-schedule/)** — it is the file the sample solve writes; drag the shifts around.
+
 ![Animated demo: a chief copies the prompt from niceschedule.com into a coding agent, which clones the repo, runs the built-in sample, and opens the printable schedule.](img/agent-demo.gif)
 
 *If this saved your group a weekend, a ⭐ helps other schedulers find it.*
