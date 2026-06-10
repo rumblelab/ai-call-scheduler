@@ -17,23 +17,24 @@
     <rect x="186" y="34" width="152" height="100" rx="8" fill="#ffffff" stroke="#153f63"/>
     <text x="262" y="56" text-anchor="middle" font-size="10" font-weight="700" letter-spacing="1" fill="#153f63">AI &#183; TRANSLATION</text>
     <text x="262" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#101418">Rules &#8594; CSVs</text>
-    <text x="262" y="98" text-anchor="middle" font-size="11" fill="#61707a">writes constraints only;</text>
-    <text x="262" y="112" text-anchor="middle" font-size="11" fill="#61707a">never invents an assignment</text>
+    <text x="262" y="98" text-anchor="middle" font-size="11" fill="#61707a">constraints only; never</text>
+    <text x="262" y="112" text-anchor="middle" font-size="11" fill="#61707a">invents an assignment</text>
 
     <line x1="341" y1="84" x2="359" y2="84" stroke="#61707a" stroke-width="1.5" marker-end="url(#arr)"/>
 
     <rect x="364" y="34" width="152" height="100" rx="8" fill="#ffffff" stroke="#2f6b57"/>
     <text x="440" y="56" text-anchor="middle" font-size="10" font-weight="700" letter-spacing="1" fill="#2f6b57">SOLVER &#183; CP-SAT</text>
     <text x="440" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#101418">solver.py</text>
-    <text x="440" y="98" text-anchor="middle" font-size="11" fill="#61707a">Google OR-Tools, deterministic;</text>
-    <text x="440" y="112" text-anchor="middle" font-size="11" fill="#61707a">conflicts named, not hidden</text>
+    <text x="440" y="96" text-anchor="middle" font-size="11" fill="#61707a">Google OR-Tools &#8212;</text>
+    <text x="440" y="110" text-anchor="middle" font-size="11" fill="#61707a">deterministic; conflicts</text>
+    <text x="440" y="124" text-anchor="middle" font-size="11" fill="#61707a">named, not hidden</text>
 
     <line x1="519" y1="84" x2="537" y2="84" stroke="#61707a" stroke-width="1.5" marker-end="url(#arr)"/>
 
     <rect x="542" y="34" width="152" height="100" rx="8" fill="#ffffff" stroke="#e3dfd3"/>
     <text x="618" y="56" text-anchor="middle" font-size="10" font-weight="700" letter-spacing="1" fill="#61707a">OUTPUT</text>
     <text x="618" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#101418">Printable HTML</text>
-    <text x="618" y="98" text-anchor="middle" font-size="11" fill="#61707a">drag-to-edit chips,</text>
+    <text x="618" y="98" text-anchor="middle" font-size="11" fill="#61707a">drag-to-edit shifts,</text>
     <text x="618" y="112" text-anchor="middle" font-size="11" fill="#61707a">totals, fairness</text>
 
     <text x="360" y="170" text-anchor="middle" font-size="12" font-weight="600" fill="#28313a">The AI never builds the schedule &#8212; the solver does.</text>
